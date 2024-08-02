@@ -2,6 +2,7 @@ from cdsetool.query import query_features, shape_to_wkt
 import geopandas as gpd
 import sys
 from eodag import EODataAccessGateway
+from eodag.crunch import FilterProperty
 import geopandas as gpd
 
 class landsat_query:
@@ -31,7 +32,7 @@ class landsat_query:
         return product_names
     
 
-    def query_landsat_eodag(start_date, end_date, shape_file, product_type = 'LANDSAT_C2L2'):
+    def query_landsat_eodag(start_date, end_date, shape_file, cloudcover = 90, product_type = 'LANDSAT_C2L2'):
 
         dag = EODataAccessGateway()
         dag.set_preferred_provider("usgs")
@@ -41,11 +42,14 @@ class landsat_query:
             'start': start_date,
             'end': end_date,
             'geom': landsat_query.get_bbox_list(shape_file),
+            # 'cloudCover': f"[0,{str(cloudcover)}]",
         }
 
-        results = dag.search_all(**search_criteria)
+        search_results = dag.search_all(**search_criteria)
 
-        return [str(res)[13:53] for res in list(results)]
+        filtered_products = [p for p in search_results if p.properties["cloudCover"] < cloudcover ]
+        print(f"{len(search_results) - len(filtered_products)} products were filtered out by the property filter.")
+        return [str(res)[13:53] for res in list(filtered_products)]
 
 
     

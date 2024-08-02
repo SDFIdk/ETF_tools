@@ -110,29 +110,6 @@ def print_order_request(order):
     print((json.dumps(order, indent=4)))
 
 
-# def place_order(order):
-#     resp = espa_api('order', verb='post', body=order)
-#     return resp['orderid']
-
-# def check_order_status(order_id):
-#     # ## Check the status of an order
-#     print(('GET /api/v1/order-status/{}'.format(order_id)))
-#     resp = espa_api('order-status/{}'.format(order_id))
-#     print((json.dumps(resp, indent=4)))
-
-# def check_completed_orders(order_id):
-#     resp = espa_api('item-status/{0}'.format(order_id), body={'status': 'complete'})
-#     print((json.dumps(resp[order_id], indent=4)))
-
-def get_download_urls(order_id):
-    # resp = espa_api('list-orders', body={"status": ["complete", "ordered"]})
-    resp = espa_api('item-status/{0}'.format(order_id), body={'status': 'complete'})
-    urls = []
-    for item in resp[order_id]:
-        urls.append(item.get('product_dload_url'))
-    return urls
-
-
 def place_order(order, log_file_path=LOG_FILE_PATH):
     resp = espa_api('order', verb='post', body=order)
     order_id = resp['orderid']
@@ -170,12 +147,13 @@ def check_order_backlog(log_file_path=LOG_FILE_PATH):
         resp = espa_api(f'list-orders/{order_id}', body= {"status": ["complete", "ordered"]})
         print((json.dumps(resp, indent=4)))
 
-# def get_download_urls(log_file_path=LOG_FILE_PATH):
-#     order_ids = read_order_ids(log_file_path)
-#     for order_id in order_ids:
-#         resp = espa_api(f'item-status/{order_id}', body={'status': 'complete'})
-#         for item in resp[order_id]:
-#             yield item.get('product_dload_url')
+def get_download_urls(log_file_path=LOG_FILE_PATH):
+    order_ids = read_order_ids(log_file_path)
+    for order_id in order_ids:
+        resp = espa_api(f'item-status/{order_id}', body={'status': 'complete'})
+        for item in resp[order_id]:
+            yield item.get('product_dload_url')
+
 
 def download_file(url, dir_path):
     """
@@ -211,6 +189,7 @@ def download_file(url, dir_path):
     except Exception as e:
         print(f"Failed to download or extract {url}: {e}")
 
+
 def download_files(urls, dir_path, num_threads=4):
     """
     Download multiple files from a list of URLs to a specified directory using multiple threads.
@@ -227,36 +206,41 @@ def download_files(urls, dir_path, num_threads=4):
         executor.map(lambda url: download_file(url, dir_path), urls)
 
 
+def find_previous_orders(): 
+    """
+    Find previous orders 
+    List backlog orders for the authenticated user.
+    """
+    
+    print('GET /api/v1/list-orders')
+    filters = {"status": ["ordered"]}
+    orders = espa_api('list-orders', body=filters)
+
+
 if __name__ == "__main__":
 
-    test_api(espa_api('user'))
+    # test_api(espa_api('user'))
 
     start_date = "2023-01-01"
     end_date = "2024-01-01"
-    shape = "varde/POLYGON.shp"
+    # shape = "shapes/varde/POLYGON.shp"
+    # shape = "shapes/gludsted/POLYGON.shp"
+    # shape = "shapes/skjern/POLYGON.shp"
+    # shape = "shapes/soroe/POLYGON.shp"
+    shape = "shapes/voulund/POLYGON.shp"
 
     destination_dir = "SSEB_files/"
 
-    order_id = "espa-javej@sdfi.dk-07312024-084518-643"
-    urls = get_download_urls(order_id)
-    download_files(urls, destination_dir)
+    urls = get_download_urls()
 
+    # download_files(urls, destination_dir)
 
-    ls_products = landsat_query.query_landsat_eodag(start_date, end_date, shape)
+    ls_products = landsat_query.query_landsat_eodag(start_date, end_date, shape, cloudcover=70)
     order = build_espa_order(ls_products, product_type = ['et'], resample = 'cc', data_format = 'gtiff', note = None)
     place_order(order)
 
-    check_order_backlog()
+    # check_order_backlog()
 
-    def find_previous_orders(): 
-        """
-        Find previous orders 
-        List backlog orders for the authenticated user.
-        """
-        
-        print('GET /api/v1/list-orders')
-        filters = {"status": ["ordered"]}
-        orders = espa_api('list-orders', body=filters)
 
     # # Here we cancel an incomplete order
     # order_id = orders[0]
