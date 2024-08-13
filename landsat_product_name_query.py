@@ -1,38 +1,68 @@
 from cdsetool.query import query_features, shape_to_wkt
 import geopandas as gpd
 import sys
+import os 
 from eodag import EODataAccessGateway
 from eodag.crunch import FilterProperty
 import geopandas as gpd
 
+from plot_stats import plot_landsat_data
+
+
 class landsat_query:
 
-    def get_bbox_list(shapefile):
-        aoi = gpd.read_file(shapefile)
-        return aoi.total_bounds.tolist()
+    def analyze_stats(query_results, shape_file, figure_name = None):
 
-    def query_landsat_cdse(start_date, end_date, geometry):
+        def get_id_from_landsat_products(landsat_product):
+            return [l.properties["id"] for l in landsat_product]
 
-        features = query_features(
-            "Landsat8",
-            {
-                "startDate": start_date,
-                "completionDate": end_date,
-                "geometry": shape_to_wkt(geometry),
-                # "productType": "L1TP"
-            },
-        )
+        def get_date_from_landsat_products(landsat_product):
+            return [l.properties["id"][17:25] for l in landsat_product]
+        
+        def get_cloudcover_from_landsat_products(landsat_product):
+            return [l.properties["cloudCover"] for l in landsat_product]
 
-        product_names = []
-        for f in features:
+        ids = get_id_from_landsat_products(query_results)
+        dates = get_date_from_landsat_products(query_results)
+        cloudcover = get_cloudcover_from_landsat_products(query_results)
 
-            product = f.get('properties').get('productIdentifier')
-            product_names.append(product.split('/')[-1])
+        stat_dict = {ids[i]: (dates[i], cloudcover[i]) for i in range(len(ids))}
 
-        return product_names
-    
+        if figure_name is None: 
+            figure_name = os.path.splitext(os.path.basename(shape_file))[0]
+        plot_landsat_data(stat_dict, figure_name = figure_name)
 
-    def query_landsat_eodag(start_date, end_date, shape_file, cloudcover = 90, product_type = 'LANDSAT_C2L2'):
+        return stat_dict
+
+    def query_landsat_eodag(
+            start_date, 
+            end_date, 
+            shape_file, 
+            cloudcover = 90, 
+            product_type = 'LANDSAT_C2L2', 
+            output_stats = False, 
+            figure_name = None,
+            ):
+        
+        """
+        Query for Landsat 8/9 files via EODAG. Please see EODAG documentation for 
+        credentials configuration.
+        https://eodag.readthedocs.io/en/stable/getting_started_guide/configure.html
+
+        Takes a date range and a file with geometry (shp or gpkg).
+        Geometry will be converted to bbox.
+
+        Returns a list of product ids
+        NOTE: This function does not download queried data, as ESPA only required a
+        list of product names, not the products themselves.
+
+        If output_stats == True the function will also output a histogram of product availability with 
+        monthly average cloud cover percentages. 
+        Stats will also be returned as a list of dates and cloud cover percentages.
+        If a figure name is not provided, the name of the geometry file will be used instead
+        and saved as .png
+
+        """
 
         dag = EODataAccessGateway()
         dag.set_preferred_provider("usgs")
@@ -41,16 +71,22 @@ class landsat_query:
             'productType': product_type,
             'start': start_date,
             'end': end_date,
-            'geom': landsat_query.get_bbox_list(shape_file),
-            # 'cloudCover': f"[0,{str(cloudcover)}]",
+            'geom': gpd.read_file(shape_file).total_bounds.tolist()
         }
 
         search_results = dag.search_all(**search_criteria)
 
         filtered_products = [p for p in search_results if p.properties["cloudCover"] < cloudcover ]
-        print(f"{len(search_results) - len(filtered_products)} products were filtered out by the property filter.")
-        return [str(res)[13:53] for res in list(filtered_products)]
+        if not len(filtered_products) == 0:
+            print(f"{len(search_results) - len(filtered_products)} products were filtered out by the property filter.")
 
+        product_ids = [str(res)[13:53] for res in list(filtered_products)]
+
+        if output_stats: 
+            stats = landsat_query.analyze_stats(search_results, shape_file)
+            return product_ids, stats
+        
+        return product_ids
 
     
 if __name__ == "__main__":
@@ -58,7 +94,7 @@ if __name__ == "__main__":
     dag = EODataAccessGateway()
     dag.set_preferred_provider('usgs')
 
-    names = landsat_query.query_landsat_eodag("2023-05-01", "2023-09-01", "skjern/POLYGON.shp")
+    names = landsat_query.query_landsat_eodag("2023-05-01", "2023-09-01", "shapes/skjern/POLYGON.shp", output_stats = True)
 
     import pprint
 

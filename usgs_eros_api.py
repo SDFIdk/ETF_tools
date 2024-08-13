@@ -1,11 +1,5 @@
-# ## Official documentation:
-# * See the [ESPA API Source Code](https://github.com/USGS-EROS/espa-api/)
-# * Visit the [ESPA On-Demand Interface](https://espa.cr.usgs.gov)
-#
-# User Guide:
-# https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/s3fs-public/media/files/LSDS-1417_ESPA-On-Demand-Interface_User-Guide-v15.pdf#
-
 from landsat_product_name_query import landsat_query
+from plot_stats import plot_landsat_data
 
 import requests
 import json
@@ -16,14 +10,21 @@ import requests
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
 import tarfile
+from pprint import pprint
 
-EPSA_HOST = 'https://espa.cr.usgs.gov/api/v1/'
+ESPA_HOST = 'https://espa.cr.usgs.gov/api/v1/'
 LOG_FILE_PATH = 'order_log.txt'  # Default log file path
 
 def espa_api(endpoint, verb='get', username = None, password = None, body=None, uauth=None):
 
     """ 
     ## espa_api: A Function
+    * See the [ESPA API Source Code](https://github.com/USGS-EROS/espa-api/)
+    * Visit the [ESPA On-Demand Interface](https://espa.cr.usgs.gov)
+
+    # User Guide:
+    # https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/s3fs-public/media/files/LSDS-1417_ESPA-On-Demand-Interface_User-Guide-v15.pdf#
+
     First and foremost, define a simple function for interacting with the API. 
     
     The key things to watch for:
@@ -41,10 +42,10 @@ def espa_api(endpoint, verb='get', username = None, password = None, body=None, 
 
 
     if username is None:
-        username, _, password = netrc.netrc().authenticators(EPSA_HOST)
+        username, _, password = netrc.netrc().authenticators(ESPA_HOST)
 
     auth_tup = uauth if uauth else (username, password)
-    response = getattr(requests, verb)(EPSA_HOST + endpoint, auth=auth_tup, json=body)
+    response = getattr(requests, verb)(ESPA_HOST + endpoint, auth=auth_tup, json=body)
     print('{} {}'.format(response.status_code, response.reason))
     data = response.json()
     if isinstance(data, dict):
@@ -61,7 +62,7 @@ def espa_api(endpoint, verb='get', username = None, password = None, body=None, 
 
 def test_api(api):
     """
-    Tests
+    Tests connection and credentials status to USGS ESPA
     """
     print('GET /api/v1/user')
     print((json.dumps(api, indent=4)))
@@ -109,50 +110,83 @@ def build_espa_order(ls_products, product_type = ['et'], resample = 'cc', data_f
 def print_order_request(order):
     print((json.dumps(order, indent=4)))
 
+class OrderTools:
 
-def place_order(order, log_file_path=LOG_FILE_PATH):
-    resp = espa_api('order', verb='post', body=order)
-    order_id = resp['orderid']
+    # TODO 
+    # SET THIS THING UP WITH A BETTER LOG, 
+    # ENSURE THE LOG HAS A DATE ASSOCIATED WITH THE ORDER OR EXTRACT IT IF POSSIBLE
+    # MAKE SURE ORDERS OVER 7 DAYS OLD ARE REMOVED
+    # 
+    # DOCUMENTATION FOR ALL ORDERS
+    # ORDERS SHOULDNT PRINT BUT RETURN, PRINT AS OPTION
+    # MAYBE CLI?
 
-    # Log the order_id
-    with open(log_file_path, 'a') as log_file:
-        log_file.write(f"{order_id}\n")
-    
-    return order_id
+    def __init__(self, espa_api):
+        self.espa_api = espa_api
 
-def read_order_ids(log_file_path=LOG_FILE_PATH):
-    if not os.path.exists(log_file_path):
-        return []
+    def place_order(self, order, log_file_path=LOG_FILE_PATH):
+        resp = self.espa_api('order', verb='post', body=order)
+        order_id = resp['orderid']
 
-    with open(log_file_path, 'r') as log_file:
-        order_ids = [line.strip() for line in log_file if line.strip()]
-    return order_ids
+        # Log the order_id
+        with open(log_file_path, 'a') as log_file:
+            log_file.write(f"{order_id}\n")
+        
+        return order_id
 
-def check_order_status(log_file_path=LOG_FILE_PATH):
-    order_ids = read_order_ids(log_file_path)
-    for order_id in order_ids:
-        print(f'GET /api/v1/order-status/{order_id}')
-        resp = espa_api(f'order-status/{order_id}')
-        print(json.dumps(resp, indent=4))
+    def read_order_ids(self, log_file_path=LOG_FILE_PATH):
+        if not os.path.exists(log_file_path):
+            return []
 
-def check_completed_orders(log_file_path=LOG_FILE_PATH):
-    order_ids = read_order_ids(log_file_path)
-    for order_id in order_ids:
-        resp = espa_api(f'item-status/{order_id}', body={'status': 'complete'})
-        print(json.dumps(resp[order_id], indent=4))
+        with open(log_file_path, 'r') as log_file:
+            order_ids = [line.strip() for line in log_file if line.strip()]
+        return order_ids
 
-def check_order_backlog(log_file_path=LOG_FILE_PATH):
-    order_ids = read_order_ids(log_file_path)
-    for order_id in order_ids:
-        resp = espa_api(f'list-orders/{order_id}', body= {"status": ["complete", "ordered"]})
-        print((json.dumps(resp, indent=4)))
+    def check_order_status(self, log_file_path=LOG_FILE_PATH):
+        order_ids = order_tools.read_order_ids(log_file_path)
+        for order_id in order_ids:
+            print(f'GET /api/v1/order-status/{order_id}')
+            resp = self.espa_api(f'order-status/{order_id}')
+            print(json.dumps(resp, indent=4))
 
-def get_download_urls(log_file_path=LOG_FILE_PATH):
-    order_ids = read_order_ids(log_file_path)
-    for order_id in order_ids:
-        resp = espa_api(f'item-status/{order_id}', body={'status': 'complete'})
-        for item in resp[order_id]:
-            yield item.get('product_dload_url')
+    def check_completed_orders(self, log_file_path=LOG_FILE_PATH):
+        order_ids = order_tools.read_order_ids(log_file_path)
+        for order_id in order_ids:
+            resp = self.espa_api(f'item-status/{order_id}', body={'status': 'complete'})
+            print(json.dumps(resp[order_id], indent=4))
+
+    def check_order_backlog(self, log_file_path=LOG_FILE_PATH):
+        order_ids = order_tools.read_order_ids(log_file_path)
+        for order_id in order_ids:
+            resp = self.espa_api(f'list-orders/{order_id}', body= {"status": ["complete", "ordered"]})
+            print((json.dumps(resp, indent=4)))
+
+    def get_download_urls(self, log_file_path=LOG_FILE_PATH, order_ids = None):
+        """
+        Returns a list of download links from either a provided list of orders
+        or if not, all placed and available orders associated with USGS user
+        """
+
+        if order_ids is None:
+            order_ids = order_tools.read_order_ids(log_file_path)
+
+        if not type(order_ids) == list: order_ids = [order_ids]
+
+        for order_id in order_ids:
+            resp = self.espa_api(f'item-status/{order_id}', body={'status': 'complete'})
+            for item in resp[order_id]:
+                yield item.get('product_dload_url')
+
+    def find_previous_orders(self, log_file_path=LOG_FILE_PATH): 
+        """
+        Find previous orders 
+        List backlog orders for the authenticated user.
+        """
+        
+        print('GET /api/v1/list-orders')
+        filters = {"status": ["ordered"]}
+        return self.espa_api('list-orders', body=filters)
+
 
 
 def download_file(url, dir_path):
@@ -163,6 +197,14 @@ def download_file(url, dir_path):
     - url (str): The URL of the file to download.
     - dir_path (str): The directory path where the file will be saved and extracted.
     """
+
+    order_number = url.split('-')[3] + '/'
+
+    dir_path = os.path.join(dir_path, order_number)
+
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
     try:
         response = requests.get(url, stream=True)
         response.raise_for_status()
@@ -199,22 +241,11 @@ def download_files(urls, dir_path, num_threads=4):
     - dir_path (str): The directory path where the files will be saved.
     - num_threads (int): The number of threads to use for downloading. Defaults to 4.
     """
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-    
+
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
         executor.map(lambda url: download_file(url, dir_path), urls)
 
 
-def find_previous_orders(): 
-    """
-    Find previous orders 
-    List backlog orders for the authenticated user.
-    """
-    
-    print('GET /api/v1/list-orders')
-    filters = {"status": ["ordered"]}
-    orders = espa_api('list-orders', body=filters)
 
 
 if __name__ == "__main__":
@@ -223,29 +254,35 @@ if __name__ == "__main__":
 
     start_date = "2023-01-01"
     end_date = "2024-01-01"
-    # shape = "shapes/varde/POLYGON.shp"
-    # shape = "shapes/gludsted/POLYGON.shp"
-    # shape = "shapes/skjern/POLYGON.shp"
-    # shape = "shapes/soroe/POLYGON.shp"
-    shape = "shapes/voulund/POLYGON.shp"
+    # shape = "shapes/varde/varde.shp"
+    shape = "shapes/gludsted/gludsted.shp"
+    # shape = "shapes/skjern/skjern.shp"
+    # shape = "shapes/soroe/soroe.shp"
+    # shape = "shapes/voulund/voulund.shp"
 
-    destination_dir = "SSEB_files/"
+    destination_dir = "J:/javej/drought/SSEB_files/"
 
-    urls = get_download_urls()
+    order_tools = OrderTools(espa_api)
 
+    
+    # print(find_previous_orders())
+
+
+    #DOWNLOAD ORDERED DATA
+
+    # CREATE NEW ORDER
+    # urls = [url for url in get_download_urls()]    
     # download_files(urls, destination_dir)
-
-    ls_products = landsat_query.query_landsat_eodag(start_date, end_date, shape, cloudcover=70)
-    order = build_espa_order(ls_products, product_type = ['et'], resample = 'cc', data_format = 'gtiff', note = None)
-    place_order(order)
+    ls_products, stats = landsat_query.query_landsat_eodag(
+        start_date, 
+        end_date, 
+        shape, 
+        cloudcover=70, 
+        output_stats = True, 
+        figure_name = None
+        )
+    
+    # order = build_espa_order(ls_products, product_type = ['et'], resample = 'cc', data_format = 'gtiff', note = None)
+    # place_order(order)
 
     # check_order_backlog()
-
-
-    # # Here we cancel an incomplete order
-    # order_id = orders[0]
-    # cancel_request = {"orderid": order_id, "status": "cancelled"}
-    # print('PUT /api/v1/order')
-    # order_status = espa_api('order', verb='put', body=cancel_request)
-
-    # print((json.dumps(order_status, indent=4)))
