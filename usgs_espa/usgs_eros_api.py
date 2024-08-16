@@ -46,7 +46,7 @@ def espa_api(endpoint, verb='get', username = None, password = None, body=None, 
 
     auth_tup = uauth if uauth else (username, password)
     response = getattr(requests, verb)(ESPA_HOST + endpoint, auth=auth_tup, json=body)
-    print('{} {}'.format(response.status_code, response.reason))
+    # print('{} {}'.format(response.status_code, response.reason))
     data = response.json()
     if isinstance(data, dict):
         messages = data.pop("messages", None)  
@@ -128,11 +128,11 @@ class OrderTools:
         resp = self.espa_api('order', verb='post', body=order)
         order_id = resp['orderid']
 
-        # Log the order_id
         with open(log_file_path, 'a') as log_file:
             log_file.write(f"{order_id}\n")
         
         return order_id
+    
 
     def read_order_ids(self, log_file_path=LOG_FILE_PATH):
         if not os.path.exists(log_file_path):
@@ -141,6 +141,7 @@ class OrderTools:
         with open(log_file_path, 'r') as log_file:
             order_ids = [line.strip() for line in log_file if line.strip()]
         return order_ids
+    
 
     def check_order_status(self, log_file_path=LOG_FILE_PATH):
         order_ids = order_tools.read_order_ids(log_file_path)
@@ -149,17 +150,34 @@ class OrderTools:
             resp = self.espa_api(f'order-status/{order_id}')
             print(json.dumps(resp, indent=4))
 
+
     def check_completed_orders(self, log_file_path=LOG_FILE_PATH):
         order_ids = order_tools.read_order_ids(log_file_path)
         for order_id in order_ids:
             resp = self.espa_api(f'item-status/{order_id}', body={'status': 'complete'})
             print(json.dumps(resp[order_id], indent=4))
 
+
     def check_order_backlog(self, log_file_path=LOG_FILE_PATH):
         order_ids = order_tools.read_order_ids(log_file_path)
         for order_id in order_ids:
             resp = self.espa_api(f'list-orders/{order_id}', body= {"status": ["complete", "ordered"]})
-            print((json.dumps(resp, indent=4)))
+            if ' not found' in resp: print('GOTCHA')
+
+            print(resp)
+
+            #TODO GET MESSAGES OUT OF THE ESPA API OR PROCESS THEM IN IT
+
+            # for key, value in resp.items():
+            #     print(key)
+            #     print('...')
+            #     print(value)
+
+            # print('AAA')
+            # print(resp)
+            # print((json.dumps(resp, indent=4)))
+            sys.exit()
+
 
     def get_download_urls(self, log_file_path=LOG_FILE_PATH, order_ids = None):
         """
@@ -263,6 +281,9 @@ if __name__ == "__main__":
     destination_dir = "J:/javej/drought/SSEB_files/"
 
     order_tools = OrderTools(espa_api)
+    order_tools.check_order_backlog()
+
+    sys.exit()
 
     
     # print(find_previous_orders())
@@ -273,14 +294,14 @@ if __name__ == "__main__":
     # CREATE NEW ORDER
     # urls = [url for url in get_download_urls()]    
     # download_files(urls, destination_dir)
-    ls_products, stats = landsat_query.query_landsat_eodag(
-        start_date, 
-        end_date, 
-        shape, 
-        cloudcover=70, 
-        output_stats = True, 
-        figure_name = None
-        )
+    # ls_products, stats = landsat_query.query_landsat_eodag(
+    #     start_date, 
+    #     end_date, 
+    #     shape, 
+    #     cloudcover=70, 
+    #     output_stats = True, 
+    #     figure_name = None
+    #     )
     
     # order = build_espa_order(ls_products, product_type = ['et'], resample = 'cc', data_format = 'gtiff', note = None)
     # place_order(order)
