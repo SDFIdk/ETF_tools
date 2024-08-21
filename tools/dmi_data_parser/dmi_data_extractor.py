@@ -35,7 +35,14 @@ class climate_data_searcher:
         self.climate_files = build_climate_file_list(climate_data_dir)
 
 
-    def search_climate_data(self, param, date, tile):
+    def search_climate_parameters(self, param, date, tile, coordinates = False):
+
+        """
+        Takes a parameter, date and tile ID and returns the corresponding
+        value from DMI Gridded Climate Data
+        
+        If coordinates == True, the script will also return corresponding bbox coordinates
+        """
         #TODO maybe return a list of results if one or more parameters are unfilled?
 
         def find_climate_file(climate_files, search_date):
@@ -71,6 +78,8 @@ class climate_data_searcher:
         return value
     
 
+    
+
 if __name__ == "__main__":
     climate_data_dir = "J:/javej/dmi_climate_grid/"
     output_file_dir = "/"
@@ -80,6 +89,6 @@ if __name__ == "__main__":
 
 
     parser = climate_data_searcher(climate_data_dir)
-    filtered_climate_data = parser.search_climate_data(date = date, param = parameter, tile = tile)
+    filtered_climate_data = parser.search_climate_parameters(date = date, param = parameter, tile = tile)
 
     print(filtered_climate_data)

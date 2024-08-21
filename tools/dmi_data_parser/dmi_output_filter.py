@@ -7,6 +7,7 @@ class dmi_climate_data_parser:
 
     """
     Filter a list of JSON strings based on given criteria.
+    If a parameter given is None, it will include everything from that parameter
 
     Example JSON string:
     {
@@ -87,7 +88,7 @@ class dmi_climate_data_parser:
         self.climate_data_files = glob.glob(climate_data_dir + '*.txt')
         self.output_dir = output_dir
 
-        self.criteria = kwargs
+        self.criteria = {k: v for k, v in kwargs.items() if v is not None}
 
 
     def parse_files(self):
@@ -116,31 +117,26 @@ class dmi_climate_data_parser:
         - json_strings (list): List of JSON strings to filter.
         """
         
-        try:
-            data = json.loads(json_str)
-            properties = data.get("properties", {})
-            
-            match = True
-            for key, allowed_values in self.criteria.items():
-                if properties.get(key) not in allowed_values:
-                    match = False
-                    break
+        data = json.loads(json_str)
+        properties = data.get("properties", {})
+        
+        match = True
+        for key, allowed_values in self.criteria.items():
+            if properties.get(key) is None: continue
+            if properties.get(key) not in allowed_values:
+                match = False
+                break
 
-            if match:
-                return json_str
-
-        except json.JSONDecodeError:
-            print(f"Invalid JSON: {json_str}")
-            return None
-
-
-
+        # sys.exit()
+        if match:
+            return json_str
 
 if __name__ == "__main__":
     climate_data_dir = "J:/javej/dmi_climate_grid/"
-    output_dir = "J:/javej/dmi_climate_grid/sorted_data/"
+    output_dir = "J:/javej/dmi_climate_grid/et_data/"
     parameterId = ["pot_evaporation_makkink"]
-    cellId = ['10km_615_66', '10km_621_51', '10km_619_46', '10km_621_52']
+    # cellId = ['10km_615_66', '10km_621_51', '10km_619_46', '10km_621_52']
+    cellId = None
 
 
     parser = dmi_climate_data_parser(climate_data_dir, output_dir, parameterId = parameterId, cellId = cellId)
