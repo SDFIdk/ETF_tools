@@ -1,6 +1,10 @@
 import rasterio as rio
 from rasterio.mask import mask
+from rasterio.warp import calculate_default_transform, reproject, Resampling
+from rasterio.enums import Resampling
+from rasterio.io import MemoryFile
 from shapely.geometry import Polygon
+from pyproj import Transformer
 import json
 
 class ETRasterTools:
@@ -25,7 +29,7 @@ class ETRasterTools:
             dst.write(processed_band.astype(rio.float32), band)
             
 
-    def process_geotiff_within_bbox(src, output_geotiff, json_str, multiplier):
+    def process_geotiff_within_bbox(src, output_geotiff, json_str):
         """
         Multiply the area of a raster within a specified bounding box by a numerical value 
         and overwrite the original GeoTIFF with the processed data.
@@ -42,17 +46,22 @@ class ETRasterTools:
             Takes json string from a DMI climate grid file
             Returns bbox
             """
-            data = json.loads(json_str)
-            return data['geometry']['coordinates']
+            return json.loads(json_str)['geometry']['coordinates']
+        
+        def get_value(json_str):
+            """
+            Takes json string from a DMI climate grid file
+            Returns value associated with parameter
+            """
+            return json.loads(json_str)['properties']['value']
 
-        bbox_str = get_bbox(json_str)
-        bbox_coords = json.loads(bbox_str)
-        bbox_polygon = [Polygon(bbox_coords[0]).bounds]
+        bbox_str = get_bbox(json_str)[0]
+        bbox_polygon = [Polygon(bbox_str).bounds]
         
         with rio.open(output_geotiff) as src:
             out_image, out_transform = mask(src, bbox_polygon, crop=True)
             
-            out_image = out_image * multiplier
+            out_image = out_image * get_value(json_str)
             
             out_meta = src.meta.copy()
             out_meta.update({"driver": "GTiff",
@@ -62,4 +71,44 @@ class ETRasterTools:
             
             with rio.open(output_geotiff, "w", **out_meta) as dst:
                 dst.write(out_image)
+
+
+    def convert_to_4326(input_file, output_file):
+        """
+        Checks the CRS of a GeoTIFF file and converts it to EPSG:4326 if it is not already.
+
+        Parameters:
+        - input_file (str): Path to the input GeoTIFF file.
+        - output_file (str): Path to the output GeoTIFF file (in EPSG:4326).
+        """
+        with rio.open(input_file) as src:
+            src_crs = src.crs
+
+            if src_crs.to_string() == 'EPSG:4326':
+                return
+
+            dst_crs = 'EPSG:4326'
+
+            transform, width, height = calculate_default_transform(
+                src.crs, dst_crs, src.width, src.height, *src.bounds)
+            
+            kwargs = src.meta.copy()
+            kwargs.update({
+                'crs': dst_crs,
+                'transform': transform,
+                'width': width,
+                'height': height
+            })
+
+            with rio.open(output_file, 'w', **kwargs) as dst:
+                for i in range(1, src.count + 1):
+                    reproject(
+                        source=rio.band(src, i),
+                        destination=rio.band(dst, i),
+                        src_transform=src.transform,
+                        src_crs=src.crs,
+                        dst_transform=transform,
+                        dst_crs=dst_crs,
+                        resampling=Resampling.nearest
+                    )
 

@@ -20,6 +20,7 @@ import rasterio as rio
 import sys
 
 from tools.dmi_data_parser.dmi_tools import DMITools
+from tools.et_adjustment.et_raster_tools import ETRasterTools
 
 class ETAdjuster():
     """
@@ -51,22 +52,29 @@ class ETAdjuster():
             output_file = os.path.join(self.output_dir, os.path.basename(et_file))
             shutil.copyfile(et_file, output_file)
             with rio.open(et_file) as et_src:
-                band = et_src.read(1)
-
                 dmi_file = DMITools.file_from_datetime(DMITools.datetime_from_landsat(et_file), self.dmi_data)
                 overlapping_data = DMITools.get_overlapping_data(dmi_file, et_src, self.dmi_param)
 
-                print(len(overlapping_data))
-                print('done')
-                sys.exit()
+                band = et_src.read(1)
 
+                for overlap_line in overlapping_data:
+                    ETRasterTools.process_geotiff_within_bbox(
+                        et_src, 
+                        output_file, 
+                        overlap_line, 
+                        self.dmi_param
+                    )
+
+                #loop overlap lines,
+                    #bandmath
+                #next file 
 
 if __name__ == '__main__':
     
     et_dir ='J:/javej/drought/drought_et/SSEB_files/095040'
     et_files = glob.glob(et_dir + '/**/*_ETF.tif')
 
-    output_dir = "J:/javej//drought/drought_et/adjustet_SSEB/"
+    output_dir = "J:/javej//drought/drought_et/adjusted_SSEB/"
     crs = 'EPSG_4329'
     dmi_data_dir = "J:/javej/drought/drought_et/dmi_climate_grid/"
     # dmi_param = "pot_evaporation_makkink"
