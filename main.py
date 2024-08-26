@@ -55,19 +55,16 @@ class ETAdjuster():
                 dmi_file = DMITools.file_from_datetime(DMITools.datetime_from_landsat(et_file), self.dmi_data)
                 overlapping_data = DMITools.get_overlapping_data(dmi_file, et_src, self.dmi_param)
 
-                band = et_src.read(1)
-
-                for overlap_line in overlapping_data:
+                for i, overlap_line in enumerate(overlapping_data):
+                    print(f'{i} / {len(overlapping_data)}', end = '\r')
+                    # print(f'{i} / {len(overlapping_data)}')
                     ETRasterTools.process_geotiff_within_bbox(
                         et_src, 
                         output_file, 
                         overlap_line, 
-                        self.dmi_param
                     )
 
-                #loop overlap lines,
-                    #bandmath
-                #next file 
+
 
 if __name__ == '__main__':
     
@@ -76,7 +73,7 @@ if __name__ == '__main__':
 
     output_dir = "J:/javej//drought/drought_et/adjusted_SSEB/"
     crs = 'EPSG_4329'
-    dmi_data_dir = "J:/javej/drought/drought_et/dmi_climate_grid/"
+    dmi_data_dir = "J:/javej/drought/drought_et/dmi_climate_grid/sorted_et_files/"
     # dmi_param = "pot_evaporation_makkink"
 
     ETAdjuster(et_files, output_dir, dmi_data_dir).run()

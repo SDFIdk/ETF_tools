@@ -2,6 +2,7 @@ import glob
 import sys
 import os
 import json
+from concurrent.futures import ThreadPoolExecutor
 
 class dmi_climate_data_parser:
 
@@ -91,8 +92,13 @@ class dmi_climate_data_parser:
         self.criteria = {k: v for k, v in kwargs.items() if v is not None}
 
 
+    # def parse_files(self):
+    #     return [self.file_parser(cf) for cf in self.climate_data_files]
+
     def parse_files(self):
-        return [self.file_parser(cf) for cf in self.climate_data_files]
+      with ThreadPoolExecutor(max_workers=10) as executor:
+          results = list(executor.map(self.file_parser, self.climate_data_files))
+      return results
 
 
     def file_parser(self, climate_file):
@@ -101,8 +107,8 @@ class dmi_climate_data_parser:
         filtered_data = [self.json_parser(json_string) for json_string in lines if self.json_parser(json_string) is not None]
 
         os.makedirs(self.output_dir, exist_ok=True)
-        filename, ext = os.path.splitext(os.path.basename(climate_file))
-        output_path = os.path.join(self.output_dir, filename + '_filtered' + ext)
+        filename = os.path.basename(climate_file)
+        output_path = os.path.join(self.output_dir, filename)
 
         with open(output_path, 'w') as file:
             for json_str in filtered_data:
@@ -132,8 +138,8 @@ class dmi_climate_data_parser:
             return json_str
 
 if __name__ == "__main__":
-    climate_data_dir = "J:/javej/dmi_climate_grid/"
-    output_dir = "J:/javej/dmi_climate_grid/et_data/"
+    climate_data_dir = "J:/javej/drought/drought_et/dmi_climate_grid/raw_files/"
+    output_dir = "J:/javej/drought/drought_et/dmi_climate_grid/sorted_et_files/"
     parameterId = ["pot_evaporation_makkink"]
     # cellId = ['10km_615_66', '10km_621_51', '10km_619_46', '10km_621_52']
     cellId = None

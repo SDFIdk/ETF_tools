@@ -56,7 +56,8 @@ class DMITools:
                 return None
             if not DMITools.check_bbox_intersection(geotiff, line):
                 return None
-            return line
+            return str(line).replace("'", '"')
+            #string formatting required to return what would otherwise be a dict object to json readable string
         
         with open(dmi_file, 'r') as file:
             lines = [line.rstrip() for line in file]

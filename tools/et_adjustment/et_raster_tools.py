@@ -2,10 +2,12 @@ import rasterio as rio
 from rasterio.mask import mask
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 from rasterio.enums import Resampling
-from rasterio.io import MemoryFile
 from shapely.geometry import Polygon
-from pyproj import Transformer
+from rasterio.windows import from_bounds
 import json
+import sys
+import numpy as np
+from tools.dmi_data_parser.dmi_tools import DMITools
 
 class ETRasterTools:
 
@@ -56,21 +58,27 @@ class ETRasterTools:
             return json.loads(json_str)['properties']['value']
 
         bbox_str = get_bbox(json_str)[0]
-        bbox_polygon = [Polygon(bbox_str).bounds]
+        bbox_str = DMITools.convert_bbox_to_geotiff_crs(src, bbox_str)
+        bbox_polygon = Polygon(bbox_str)
+
+        out_image, _ = mask(src, [bbox_polygon], crop=True)
+        # out_image *= get_value(json_str)
+        # out_image = (out_image * get_value(json_str)).astype(src.profile['dtype'])
+        # out_image = (out_image * get_value(json_str) / 10000.0).astype('float32')
+        out_image = np.where(out_image != src.nodata, 
+                     (out_image * get_value(json_str) / 10000.0).astype('float32'), 
+                     src.nodata)
         
-        with rio.open(output_geotiff) as src:
-            out_image, out_transform = mask(src, bbox_polygon, crop=True)
-            
-            out_image = out_image * get_value(json_str)
-            
-            out_meta = src.meta.copy()
-            out_meta.update({"driver": "GTiff",
-                            "height": out_image.shape[1],
-                            "width": out_image.shape[2],
-                            "transform": out_transform})
-            
-            with rio.open(output_geotiff, "w", **out_meta) as dst:
-                dst.write(out_image)
+        out_image = np.where((out_image >= 0) & (out_image <= 100), 
+                     out_image, 
+                     src.nodata)
+
+        # Update the relevant section of the GeoTIFF with the processed data
+        with rio.open(output_geotiff, "r+") as dst:
+            window = rio.features.geometry_window(dst, [bbox_polygon])
+            original_data = dst.read(window=window)
+            original_data[:, :out_image.shape[1], :out_image.shape[2]] = out_image
+            dst.write(original_data, window=window)
 
 
     def convert_to_4326(input_file, output_file):
