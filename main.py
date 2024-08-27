@@ -18,9 +18,10 @@ import os
 import shutil
 import rasterio as rio
 import sys
+import time
 
 from tools.dmi_data_parser.dmi_tools import DMITools
-from tools.et_adjustment.et_raster_tools import ETRasterTools
+from tools.et_adjustment.raster_tools import RasterTools
 
 class ETAdjuster():
     """
@@ -47,23 +48,44 @@ class ETAdjuster():
         self.dmi_param = dmi_param
         self.crs = crs
 
+
     def run(self):
         for i, et_file in enumerate(self.et_files):
+            t = time.time()
             output_file = os.path.join(self.output_dir, os.path.basename(et_file))
-            shutil.copyfile(et_file, output_file)
+            RasterTools.create_empty_raster(et_file, output_file)
+
             with rio.open(et_file) as et_src:
                 dmi_file = DMITools.file_from_datetime(DMITools.datetime_from_landsat(et_file), self.dmi_data)
                 overlapping_data = DMITools.get_overlapping_data(dmi_file, et_src, self.dmi_param)
 
-                for i, overlap_line in enumerate(overlapping_data):
-                    print(f'{i} / {len(overlapping_data)}', end = '\r')
-                    # print(f'{i} / {len(overlapping_data)}')
-                    ETRasterTools.process_geotiff_within_bbox(
+                for j, overlap_line in enumerate(overlapping_data):
+                    t2 = time.time()
+                    RasterTools.process_geotiff_within_bbox(
                         et_src, 
                         output_file, 
                         overlap_line, 
                     )
 
+
+                    print(f'Raster {i} / {len(self.et_files)}; Tile {j} / {len(overlapping_data)}, t = {time.time() - t2}', end = '\r')
+                    # print(f'{i} / {len(overlapping_data)}')
+
+
+                #Implement dynamic range constriction function here, when the entire raster is done.
+                # out_image = np.where(
+                #     (out_image >= 0) & (out_image <= 100), 
+                #     out_image, 
+                #     src.nodata
+                #     )
+
+                #NEW FUNCTION
+                # implement image smoothing function when all times are completed
+
+            print(time.time() - t)
+            print(time.time() - t)
+            print(time.time() - t)
+            sys.exit()
 
 
 if __name__ == '__main__':
