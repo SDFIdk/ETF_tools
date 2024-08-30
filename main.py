@@ -51,42 +51,33 @@ class ETAdjuster():
 
     def run(self):
         for i, et_file in enumerate(self.et_files):
+            rastertools = RasterTools(et_file, self.output_dir)
             t = time.time()
-            output_file = os.path.join(self.output_dir, os.path.basename(et_file))
-            RasterTools.create_empty_raster(et_file, output_file)
 
-            with rio.open(et_file) as et_src:
-                dmi_file = DMITools.file_from_datetime(DMITools.datetime_from_landsat(et_file), self.dmi_data)
-                overlapping_data = DMITools.get_overlapping_data(dmi_file, et_src, self.dmi_param)
-
-                for j, overlap_line in enumerate(overlapping_data):
-                    t2 = time.time()
-                    RasterTools.process_geotiff_within_bbox(
-                        et_src, 
-                        output_file, 
-                        overlap_line, 
-                    )
+            dmi_file = DMITools.file_from_datetime(DMITools.datetime_from_landsat(et_file), self.dmi_data)
+            overlapping_data = DMITools.get_overlapping_data(
+                dmi_file, 
+                rastertools.get_src(), 
+                self.dmi_param
+                )
+            
 
 
-                    print(f'Raster {i} / {len(self.et_files)}; Tile {j} / {len(overlapping_data)}, t = {time.time() - t2}', end = '\r')
-                    # print(f'{i} / {len(overlapping_data)}')
+            for j, overlap_line in enumerate(overlapping_data):
+                t2 = time.time()
+                rastertools.process_geotiff_within_bbox(overlap_line)
 
+                # print(f'Raster {i} / {len(self.et_files)}; Tile {j} / {len(overlapping_data)}, t = {time.time() - t2}', end = '\r')
+                # print(f'{i} / {len(overlapping_data)}')
 
-                #Implement dynamic range constriction function here, when the entire raster is done.
-                # out_image = np.where(
-                #     (out_image >= 0) & (out_image <= 100), 
-                #     out_image, 
-                #     src.nodata
-                #     )
-
-                #NEW FUNCTION
-                # implement image smoothing function when all times are completed
+            # rastertools.smooth_nodata_pixels()
+            # rastertools.constrict_dynamic_range((0, 100))
+            # rastertools.close()
 
             print(time.time() - t)
             print(time.time() - t)
             print(time.time() - t)
             sys.exit()
-
 
 if __name__ == '__main__':
     
