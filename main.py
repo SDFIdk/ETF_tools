@@ -57,11 +57,9 @@ class ETAdjuster():
             dmi_file = DMITools.file_from_datetime(DMITools.datetime_from_landsat(et_file), self.dmi_data)
             overlapping_data = DMITools.get_overlapping_data(
                 dmi_file, 
-                rastertools.get_src(), 
+                et_file, 
                 self.dmi_param
                 )
-            
-
 
             for j, overlap_line in enumerate(overlapping_data):
                 t2 = time.time()
@@ -70,26 +68,38 @@ class ETAdjuster():
                 # print(f'Raster {i} / {len(self.et_files)}; Tile {j} / {len(overlapping_data)}, t = {time.time() - t2}', end = '\r')
                 # print(f'{i} / {len(overlapping_data)}')
 
-            # rastertools.smooth_nodata_pixels()
-            # rastertools.constrict_dynamic_range((0, 100))
-            # rastertools.close()
+            rastertools.constrict_dynamic_range((0, 10))
+            rastertools.smooth_nodata_pixels()
 
-            print(time.time() - t)
-            print(time.time() - t)
-            print(time.time() - t)
-            sys.exit()
 
 if __name__ == '__main__':
     
-    et_dir ='J:/javej/drought/drought_et/SSEB_files/095040'
-    et_files = glob.glob(et_dir + '/**/*_ETF.tif')
+    et_dirs = [
+        'J:/javej/drought/drought_et/SSEB_files/095040',
+        'J:/javej/drought/drought_et/SSEB_files/soroe',
+        'J:/javej/drought/drought_et/SSEB_files/095218',
+        'J:/javej/drought/drought_et/SSEB_files/095116'
+    ]
 
-    output_dir = "J:/javej//drought/drought_et/adjusted_SSEB/"
-    crs = 'EPSG_4329'
     dmi_data_dir = "J:/javej/drought/drought_et/dmi_climate_grid/sorted_et_files/"
-    # dmi_param = "pot_evaporation_makkink"
+    output_base_dir = "J:/javej//drought/drought_et/adjusted_SSEB/"
+    crs = 'EPSG_4329'
 
-    ETAdjuster(et_files, output_dir, dmi_data_dir).run()
+    for et_dir in et_dirs:
+        et_files = glob.glob(et_dir + '/**/*_ETF.tif')
+        output_dir = os.path.join(output_base_dir, os.path.basename(et_dir))
+
+        ETAdjuster(et_files, output_dir, dmi_data_dir).run()
+
+
+
+
+    # et_dir ='J:/javej/drought/drought_et/SSEB_files/soroe'
+    # et_files = glob.glob(et_dir + '/**/*_ETF.tif')
+
+    # dmi_data_dir = "J:/javej/drought/drought_et/dmi_climate_grid/sorted_et_files/"
+
+    # ETAdjuster(et_files, output_dir, dmi_data_dir).run()
 
 
 

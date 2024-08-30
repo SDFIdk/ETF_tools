@@ -4,6 +4,7 @@ import json
 from shapely.geometry import Polygon
 from shapely.geometry import box
 from pyproj import Transformer
+import rasterio as rio
 
 
 class DMITools:
@@ -42,7 +43,7 @@ class DMITools:
         return json_str['geometry']['coordinates']
     
 
-    def get_overlapping_data(dmi_file, src, param):
+    def get_overlapping_data(dmi_file, et_file, param):
         """
         Takes a DMI climate grid file,  an open rasterio object and a parameter string corresponging to a DMI climate grid parameter.
         Returns a list of the JSON strings which have overlapping bounds with the geotiff.
@@ -76,7 +77,8 @@ class DMITools:
         with open(dmi_file, 'r') as file:
                lines = [line.rstrip() for line in file]
 
-        raster_bounds = convert_src_bounds_to_4326(src)
+        with rio.open(et_file) as src:
+            raster_bounds = convert_src_bounds_to_4326(src)
 
         overlapping_data = []
         for line in lines:
