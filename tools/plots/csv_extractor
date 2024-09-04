@@ -1,14 +1,16 @@
 import os
 import re
 import csv
-import rasterio
+import sys
+import glob
+import rasterio as rio
 import numpy as np
 from shapely.geometry import Point
 from rasterio.features import geometry_mask
 from rasterio.windows import from_bounds
 from pyproj import Transformer
 
-def sample_geotiffs_in_radius(folder, lat, lon, source, radius=25):
+def sample_geotiffs_in_radius(folder, lat, lon, model, radius=100, et_extension = '*.tif'):
     """
     Samples GeoTIFFs in a specified folder within a radius around a given lat/lon point,
     calculates the average value, and logs the result to a list.
@@ -17,47 +19,40 @@ def sample_geotiffs_in_radius(folder, lat, lon, source, radius=25):
     - folder (str): Path to the folder containing GeoTIFF files.
     - lat (float): Latitude of the point to sample.
     - lon (float): Longitude of the point to sample.
-    - source (string): Which naming scheme should be followd to extract date
+    - model (string): Which naming scheme should be followd to extract date
     - radius (float): Radius in meters around the point to sample. Default is 25 meters.
 
     Returns:
     - list: List of dictionaries with filename, date (extracted from filename), and average value.
     """
-    results = []
-    point = Point(lon, lat)
-    transformer = Transformer.from_crs("EPSG:4326", "EPSG:32632", always_xy=True)  # Adjust the EPSG code as necessary
-    point_transformed = transformer.transform(lon, lat)
 
-    for filename in os.listdir(folder):
+    results = []
+    for filename in glob.glob(folder + et_extension):
         if filename.endswith(".tif"):
             file_path = os.path.join(folder, filename)
 
-            with rasterio.open(file_path) as src:
+            with rio.open(file_path) as src:
                 transform = src.transform
-                crs = src.crs
 
-                # Transform the point to the CRS of the GeoTIFF
-                point_in_crs = transformer.transform(lon, lat, crs=crs)
-                point_geometry = Point(point_in_crs)
+                transformer = Transformer.from_crs("EPSG:4326", 'EPSG:32632', always_xy=True)
+                point_transformed = transformer.transform(lat, lon)
+                point_geometry = Point(point_transformed)
 
-                # Calculate the bounding box for the sampling radius
-                minx = point_in_crs[0] - radius
-                miny = point_in_crs[1] - radius
-                maxx = point_in_crs[0] + radius
-                maxy = point_in_crs[1] + radius
+                minx = point_transformed[0] - radius
+                miny = point_transformed[1] - radius
+                maxx = point_transformed[0] + radius
+                maxy = point_transformed[1] + radius
 
-                # Create a window from the bounding box
-                window = from_bounds(minx, miny, maxx, maxy, transform=src.transform)
+                window = from_bounds(minx, miny, maxx, maxy, transform=transform)
                 data = src.read(1, window=window)
 
-                # Mask nodata values and calculate the mean
-                mask = geometry_mask([point_geometry], transform=src.transform, invert=True, out_shape=(data.shape[0], data.shape[1]))
+                mask = geometry_mask([point_geometry], transform=transform, invert=True, out_shape=(data.shape[0], data.shape[1]))
                 masked_data = np.ma.masked_array(data, mask=mask)
 
                 if not masked_data.mask.all():
                     average_value = masked_data.mean()
 
-                    date = extract_date_from_filename(filename, source)
+                    date = extract_date_from_filename(filename, model)
 
                     results.append({
                         'filename': filename,
@@ -65,26 +60,30 @@ def sample_geotiffs_in_radius(folder, lat, lon, source, radius=25):
                         'average_value': average_value
                     })
 
+    print(results)
+    sys.exit()
+
     return results
 
-def extract_date_from_filename(filename, source):
+
+def extract_date_from_filename(filename, model):
     """
     Extracts date string from filenames
 
     Parameters:
     - filename: (string) filename on a usgs product
-    - source: (string) source of filename. Determines how funcion extracts date string
+    - model: (string) source of filename. Determines how funcion extracts date string
 
     Returns:
     - date string: YYYYMMDD date string
     """
 
-    def extract_usgs(filename):
+    def extract_sseb(filename):
         match = re.search(r'\d{8}', filename)
         if match:
             return match.group(0)
         else:
-            raise ValueError("Input does not match USGS naming convention")
+            raise ValueError("Input does not match SSEB naming convention")
 
     def extract_metric(filename):
         match = re.search(r'\((\d{8})\)', filename)
@@ -93,11 +92,15 @@ def extract_date_from_filename(filename, source):
         else:
             raise ValueError("Input does not match METRIC naming convention")
 
+    extraction_functions = {
+        "sseb": extract_sseb,
+        "metric": extract_metric,
+    }
     
-    if f"{source}_extract" in globals():
-        return globals()[f"{source}_extract"](filename)
+    if model in extraction_functions:
+        return extraction_functions[model](filename)
     else:
-        raise ValueError(f"Extraction option for {source} does not exist.")
+        raise ValueError(f"Extraction option for {model} does not exist.")
 
 
 def save_results_to_csv(results, output_csv):
@@ -117,10 +120,36 @@ def save_results_to_csv(results, output_csv):
             writer.writerow(result)
 
 # Example usage:
-folder = "path/to/geotiffs"
-lat, lon = 55.0, 12.0
-source = 'usgs'
-output_csv = "output/results.csv"
+et_file_dir = "J:/javej/drought/drought_et/SSEB_files/"
+et_file_dir = "J:/javej/drought/drought_et/adjusted_SSEB/"
 
-results = sample_geotiffs_in_radius(folder, lat, lon, source)
-save_results_to_csv(results, output_csv)
+model = 'sseb'
+et_extension = '*.tif'
+# et_extension = '*_ETA.tif'
+
+output_dir = "J:/javej/drought/drought_et/time_series/"
+
+#lon, lat and directory in the et_file dir
+et_sample_points = [
+    (55.484757, 11.642088, 'soroe'),
+    (56.038813, 9.160688, 'voulund'),
+    (55.913856, 8.401428, 'skjern'),
+    (56.075209, 9.333798, 'gludsted')
+]
+
+for data in et_sample_points:
+    lon, lat, location = data
+
+    data_collection = os.path.basename(os.path.normpath(et_file_dir))
+
+    output_csv = os.path.join(output_dir, f'{model}_{data_collection}_{location}')
+
+    results = sample_geotiffs_in_radius(
+        os.path.join(et_file_dir, location + '/'), 
+        lat, 
+        lon, 
+        model, 
+        et_extension=et_extension
+    )
+
+    save_results_to_csv(results, output_csv)

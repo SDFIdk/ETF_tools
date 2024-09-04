@@ -75,10 +75,10 @@ class ETAdjuster():
 if __name__ == '__main__':
     
     et_dirs = [
-        'J:/javej/drought/drought_et/SSEB_files/095040',
+        'J:/javej/drought/drought_et/SSEB_files/voulund',
         'J:/javej/drought/drought_et/SSEB_files/soroe',
-        'J:/javej/drought/drought_et/SSEB_files/095218',
-        'J:/javej/drought/drought_et/SSEB_files/095116'
+        'J:/javej/drought/drought_et/SSEB_files/skjern',
+        'J:/javej/drought/drought_et/SSEB_files/gludsted'
     ]
 
     dmi_data_dir = "J:/javej/drought/drought_et/dmi_climate_grid/sorted_et_files/"
