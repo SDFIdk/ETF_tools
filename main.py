@@ -15,8 +15,6 @@
 #in the future the process could be sped up a lot by figureing out which tiles are overlapped to begin with and then presorting the DMI stuff
 import glob
 import os
-import shutil
-import rasterio as rio
 import sys
 import time
 
