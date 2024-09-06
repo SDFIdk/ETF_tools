@@ -4,6 +4,7 @@ from collections import namedtuple
 import glob
 import os
 import sys
+import numpy as np
 
 class ETPlotter:
 
@@ -49,7 +50,7 @@ class ETPlotter:
 
         for csv_file in self.csv_files:
 
-            model, adjustment, location = os.path.basename(csv_file).split('_')
+            model, adjustment, location = os.path.splitext(os.path.basename(csv_file))[0].split('_')
             label = self.build_label(csv_file)
 
             if location in location_styles:
@@ -66,8 +67,9 @@ class ETPlotter:
     
 
     def run_all_plots(self):
-        self.plot_all_data(self)
-        # self.
+        # self.plot_all_data()
+        # self.plot_data_by_location()
+        self.plot_data_by_location_with_ratio()
 
 
     def build_label(self, csv_file):
@@ -153,15 +155,121 @@ class ETPlotter:
         plt.grid(True)
 
         plt.savefig(output_filename, dpi=300, bbox_inches='tight')
-        plt.show()
+        # plt.show()
 
+
+    def plot_data_by_location(self):
+        """
+        Generates a separate plot for each location, including all entries associated with that location.
+        """
+
+        grouped_by_location = {}
+        for csv_file, metadata in self.data_table.items():
+            if metadata.location not in grouped_by_location:
+                grouped_by_location[metadata.location] = []
+            grouped_by_location[metadata.location].append((csv_file, metadata))
+
+        for location, data_list in grouped_by_location.items():
+            plt.figure(figsize=(10, 6))
+
+            for csv_file, metadata in data_list:
+                data = self.get_csv_data(csv_file)
+
+                plt.plot(
+                    data['date'],
+                    data['average_value'],
+                    label=f"{metadata.model} {metadata.adjustment}",
+                    color=self.color_list[metadata.color],
+                    linestyle=self.style_list[metadata.style]
+                )
+
+            output_filename = os.path.join(self.graph_output_dir, f"{location}_data.png")
+
+            plt.ylabel('Daily evaporation [mm]')
+            plt.title(f'Daily average ET measurements for {location}')
+            plt.legend(loc='best')
+            plt.grid(True)
+
+            plt.savefig(output_filename, dpi=300, bbox_inches='tight')
+            # plt.show()
+            plt.close()
+            
+    def plot_data_by_location_with_ratio(self):
+        """
+        Generates two subplots for each location:
+        1. The top plot shows the original data.
+        2. The bottom plot shows the ratio of the two data sets with a center line at y=0.
+        """
+        
+        grouped_by_location = {}
+        for csv_file, metadata in self.data_table.items():
+            if metadata.location not in grouped_by_location:
+                grouped_by_location[metadata.location] = []
+            grouped_by_location[metadata.location].append((csv_file, metadata))
+
+        for location, data_list in grouped_by_location.items():
+            if len(data_list) != 2:
+                print(f"Skipping {location} - requires exactly two plots for the ratio calculation.")
+                continue
+
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10), sharex=True)
+
+            # First plot: Original data
+            for csv_file, metadata in data_list:
+                data = self.get_csv_data(csv_file)
+
+                ax1.plot(
+                    data['date'],
+                    data['average_value'],
+                    label=f"{metadata.model} {metadata.adjustment}",
+                    color=self.color_list[metadata.color],
+                    linestyle=self.style_list[metadata.style]
+                )
+
+            ax1.set_ylabel('Daily evaporation [mm]')
+            ax1.set_title(f'Daily average ET measurements for {location}')
+            ax1.legend(loc='best')
+            ax1.grid(True)
+
+            # Second plot: Ratio between the two plots
+            data1 = self.get_csv_data(data_list[0][0])
+            data2 = self.get_csv_data(data_list[1][0])
+
+            data1['date'] = pd.to_datetime(data1['date'])
+            data2['date'] = pd.to_datetime(data2['date'])
+
+            df1 = pd.DataFrame({'date': data1['date'], 'average_value': data1['average_value']})
+            df2 = pd.DataFrame({'date': data2['date'], 'average_value': data2['average_value']})
+
+            merged_df = pd.merge(df1, df2, on='date', how='inner', suffixes=('_1', '_2'))
+
+            merged_df['ratio'] = np.divide(merged_df['average_value_1'], merged_df['average_value_2'],
+                                        out=np.zeros_like(merged_df['average_value_1']),
+                                        where=merged_df['average_value_2'] != 0)
+
+            ax2.plot(
+                merged_df['date'],
+                merged_df['ratio'],
+                label=f"Ratio: {data_list[0][1].model} / {data_list[1][1].model}",
+                color="blue",
+                linestyle="-"
+            )
+
+            ax2.axhline(1, color="red", linestyle="--")  # Center line at y=1
+            ax2.set_ylabel('Ratio')
+            ax2.set_xlabel('Date')
+            ax2.legend(loc='best')
+            ax2.grid(True)
+
+            output_filename = os.path.join(self.graph_output_dir, f"{location}_data_with_ratio.png")
+
+            plt.savefig(output_filename, dpi=300, bbox_inches='tight')
+            plt.close()
 
 
 csv_folder = 'test_dir/'
 graph_output_dir = 'test_dir/graphs'
 
 et_plotter = ETPlotter(csv_folder, graph_output_dir)
-# et_plotter.run_all_plots()
-
-et_plotter.plot_all_data()
+et_plotter.run_all_plots()
  
