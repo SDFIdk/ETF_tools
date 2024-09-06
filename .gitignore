@@ -165,3 +165,5 @@ cython_debug/
 SSEB_files/
 *.tar.gz
 *.yml
+*.csv
+*.png

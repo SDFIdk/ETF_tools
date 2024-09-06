@@ -39,7 +39,6 @@ def sample_geotiffs_in_radius(folder, lat, lon, model, radius=100):
         e.add_note('    sseb_unadj, sseb_adj, metric')
         raise
 
-
     results = []
     for filename in glob.glob(folder + et_extension):
         if not filename.endswith(".tif"):
@@ -106,7 +105,7 @@ def extract_date_from_filename(filename, model):
     """
 
     def extract_sseb(filename):
-        match = re.search(r'\d{8}', filename)
+        match = re.search(r'\d{8}', os.path.basename(filename))
         if match:
             return match.group(0)
         else:
@@ -162,11 +161,11 @@ def build_csv_name(model, location_name):
 # et_file_dir = "J:/javej/drought/drought_et/METRIC/"
 # model = 'metric'
 
-et_file_dir = "J:/javej/drought/drought_et/adjusted_SSEB/"
-model = 'sseb_adj'
+# et_file_dir = "J:/javej/drought/drought_et/adjusted_SSEB/"
+# model = 'sseb_adj'
 
-# et_file_dir = "J:/javej/drought/drought_et/SSEB_files/"
-# model = 'sseb_unadj'
+et_file_dir = "J:/javej/drought/drought_et/SSEB_files/"
+model = 'sseb_unadj'
 
 # output_dir = "J:/javej/drought/drought_et/time_series/"
 output_dir = 'test_dir/'

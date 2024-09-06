@@ -21,6 +21,8 @@ import time
 from tools.dmi_data_parser.dmi_tools import DMITools
 from tools.et_adjustment.raster_tools import RasterTools
 
+#TODO Change names of outputs from ETF to ETAajdust or something
+
 class ETAdjuster():
     """
     This script uses ETF rasters and local Danish PET climate data
