@@ -112,14 +112,14 @@ if __name__ == '__main__':
     ]
 
     dmi_data_dir = "J:/javej/drought/drought_et/dmi_climate_grid/sorted_et_files/"
-    localized_data_dir = "J:/javej//drought/drought_et/adjusted_SSEB/"
+    localized_output = "J:/javej//drought/drought_et/adjusted_SSEB/"
     dmi_raster_dir = "J:/javej//drought/drought_et/dmi_PET_raster/"
     crs = 'EPSG_4329'
 
     for et_dir in et_dirs:
         et_files = glob.glob(et_dir + '/**/*_ETF.tif')
-        output_dir = os.path.join(localized_data_dir, os.path.basename(et_dir))
-        ETRasterBuilder(et_files, output_dir, localized_data_dir).localize_etf_data()
+        output_dir = os.path.join(localized_output, os.path.basename(et_dir))
+        ETRasterBuilder(et_files, output_dir, dmi_data_dir).localize_etf_data()
 
         output_dir = os.path.join(dmi_raster_dir, os.path.basename(et_dir))
         ETRasterBuilder(et_files, output_dir, dmi_data_dir).build_dmi_data_raster()

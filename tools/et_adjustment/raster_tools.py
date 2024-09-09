@@ -83,14 +83,8 @@ class RasterTools:
                 out_image, _ = mask(src, [bbox_polygon], crop=True)
             except Exception:
                 return
-            
-        # if np.all(out_image == nodata): 
-        #     return
         
-        new_value = JSONUtils.get_value(json_str)# / 10000.0
-        # print(type(new_value))
-        # print(new_value)
-        # sys.exit()
+        new_value = JSONUtils.get_value(json_str)
         out_image = np.full(out_image.shape, new_value, dtype='float32')
 
         with rio.open(self.output_path, 'r+') as dst:
