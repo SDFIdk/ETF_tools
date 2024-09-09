@@ -2,14 +2,12 @@ import rasterio as rio
 from rasterio.mask import mask
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 from rasterio.enums import Resampling
-from rasterio.features import geometry_window
 from shapely.geometry import Polygon
-import json
 import sys
 import numpy as np
 import os
-from shapely.geometry import box
 from tools.dmi_data_parser.dmi_tools import DMITools
+from tools.et_adjustment.json_utils import JSONUtils
 
 class RasterTools:
     """
@@ -17,13 +15,15 @@ class RasterTools:
     All tools take open rasterio objects
     """
 
-    def __init__(self, input_path, output_dir):
+    def __init__(self, input_path, output_dir, ext):
         self.input_path = input_path
         self.output_path = os.path.join(output_dir, os.path.basename(input_path))
+        self.output_path = self.output_path.replace(ext[0], ext[1])
+
         self.create_empty_raster()
                 
 
-    def process_geotiff_within_bbox(self, json_str):
+    def localize_geotiff_within_bbox(self, json_str):
         """
         Multiply the area of a raster within a specified bounding box by a numerical value 
         and overwrite the original GeoTIFF with the processed data.
@@ -34,25 +34,11 @@ class RasterTools:
                         '[[[lng1, lat1], [lng2, lat2], ..., [lng1, lat1]]]'.
         - multiplier (float): The value to multiply the raster values by within the bounding box.
         """
-
-        def get_bbox(json_str):
-            """
-            Takes json string from a DMI climate grid file
-            Returns bbox
-            """
-            return json.loads(json_str)['geometry']['coordinates']
-        
-        def get_value(json_str):
-            """
-            Takes json string from a DMI climate grid file
-            Returns value associated with parameter
-            """
-            return json.loads(json_str)['properties']['value']
         
         with rio.open(self.input_path, 'r') as src:
             nodata = src.nodata
                 
-            bbox_str = get_bbox(json_str)[0]
+            bbox_str = JSONUtils.get_bbox(json_str)[0]
             bbox_str = DMITools.convert_bbox_to_geotiff_crs(src, bbox_str)
             bbox_polygon = Polygon(bbox_str)
      
@@ -66,9 +52,46 @@ class RasterTools:
         
         out_image = np.where(
             out_image != nodata, 
-            (out_image * get_value(json_str) / 10000.0).astype('float32'), 
+            (out_image * JSONUtils.get_value(json_str) / 10000.0).astype('float32'), 
             nodata
             )
+
+        with rio.open(self.output_path, 'r+') as dst:
+            window = rio.features.geometry_window(dst, [bbox_polygon])
+            original_data = dst.read(window=window)
+            original_data[:, :out_image.shape[1], :out_image.shape[2]] = out_image
+            dst.write(original_data, window=window)
+
+
+    def overwrite_geotiff_within_bbox(self, json_str):
+        """
+        Overwrite the area of a raster within a specified bounding box with a new data value 
+        and save it to the output GeoTIFF. This creates a raster equivalent of the DMI data
+
+        Parameters:
+        - json_str (str): JSON string from a DMI climate grid file containing bounding box and value.
+        """
+        
+        with rio.open(self.input_path, 'r') as src:
+            nodata = src.nodata
+                
+            bbox_str = JSONUtils.get_bbox(json_str)[0]
+            bbox_str = DMITools.convert_bbox_to_geotiff_crs(src, bbox_str)
+            bbox_polygon = Polygon(bbox_str)
+    
+            try:
+                out_image, _ = mask(src, [bbox_polygon], crop=True)
+            except Exception:
+                return
+            
+        # if np.all(out_image == nodata): 
+        #     return
+        
+        new_value = JSONUtils.get_value(json_str)# / 10000.0
+        # print(type(new_value))
+        # print(new_value)
+        # sys.exit()
+        out_image = np.full(out_image.shape, new_value, dtype='float32')
 
         with rio.open(self.output_path, 'r+') as dst:
             window = rio.features.geometry_window(dst, [bbox_polygon])

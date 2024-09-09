@@ -23,10 +23,9 @@ from tools.et_adjustment.raster_tools import RasterTools
 
 #TODO Change names of outputs from ETF to ETAajdust or something
 
-class ETAdjuster():
+class ETRasterBuilder:
     """
-    This script uses ETF rasters and local Danish PET climate data
-    from the DMI climate grid to produce locally adjusted ET data
+    Tools for making and localizing ET data
 
     Parameters:
      - et_files (list): list of geotiffs of evaporative fraction (ETF)
@@ -49,10 +48,14 @@ class ETAdjuster():
         self.crs = crs
 
 
-    def run(self):
+    def localize_etf_data(self):
+        """
+        This script uses ETF rasters and local Danish PET climate data
+        from the DMI climate grid to produce locally adjusted ET data
+        """
+
         for i, et_file in enumerate(self.et_files):
-            rastertools = RasterTools(et_file, self.output_dir)
-            t = time.time()
+            rastertools = RasterTools(et_file, self.output_dir, ext = ['_ETF.tif', '_DMILocal.tif'])
 
             dmi_file = DMITools.file_from_datetime(DMITools.datetime_from_landsat(et_file), self.dmi_data)
             overlapping_data = DMITools.get_overlapping_data(
@@ -63,13 +66,40 @@ class ETAdjuster():
 
             for j, overlap_line in enumerate(overlapping_data):
                 t2 = time.time()
-                rastertools.process_geotiff_within_bbox(overlap_line)
+                rastertools.localize_geotiff_within_bbox(overlap_line)
 
-                # print(f'Raster {i} / {len(self.et_files)}; Tile {j} / {len(overlapping_data)}, t = {time.time() - t2}', end = '\r')
+                print(f'Raster {i} / {len(self.et_files)}; Tile {j} / {len(overlapping_data)}, t = {time.time() - t2}', end = '\r')
                 # print(f'{i} / {len(overlapping_data)}')
 
             rastertools.constrict_dynamic_range((0, 10))
             rastertools.smooth_nodata_pixels()
+
+
+    def build_dmi_data_raster(self):
+        """
+        This script converts the DMI climate grid data from txt description to raster
+        """
+
+        for i, et_file in enumerate(self.et_files):
+            rastertools = RasterTools(et_file, self.output_dir, ext = ['_ETF.tif', '_DMIPET.tif'])
+
+            dmi_file = DMITools.file_from_datetime(DMITools.datetime_from_landsat(et_file), self.dmi_data)
+            overlapping_data = DMITools.get_overlapping_data(
+                dmi_file, 
+                et_file, 
+                self.dmi_param
+                )
+
+            for j, overlap_line in enumerate(overlapping_data):
+                t2 = time.time()
+                rastertools.overwrite_geotiff_within_bbox(overlap_line)
+
+                print(f'Raster {i} / {len(self.et_files)}; Tile {j} / {len(overlapping_data)}, t = {time.time() - t2}', end = '\r')
+                # print(f'{i} / {len(overlapping_data)}')
+
+            # rastertools.constrict_dynamic_range((0, 10))
+            # rastertools.smooth_nodata_pixels()
+
 
 
 if __name__ == '__main__':
@@ -82,27 +112,17 @@ if __name__ == '__main__':
     ]
 
     dmi_data_dir = "J:/javej/drought/drought_et/dmi_climate_grid/sorted_et_files/"
-    output_base_dir = "J:/javej//drought/drought_et/adjusted_SSEB/"
+    localized_data_dir = "J:/javej//drought/drought_et/adjusted_SSEB/"
+    dmi_raster_dir = "J:/javej//drought/drought_et/dmi_PET_raster/"
     crs = 'EPSG_4329'
 
     for et_dir in et_dirs:
         et_files = glob.glob(et_dir + '/**/*_ETF.tif')
-        output_dir = os.path.join(output_base_dir, os.path.basename(et_dir))
+        output_dir = os.path.join(localized_data_dir, os.path.basename(et_dir))
+        ETRasterBuilder(et_files, output_dir, localized_data_dir).localize_etf_data()
 
-        ETAdjuster(et_files, output_dir, dmi_data_dir).run()
-
-
-
-
-    # et_dir ='J:/javej/drought/drought_et/SSEB_files/soroe'
-    # et_files = glob.glob(et_dir + '/**/*_ETF.tif')
-
-    # dmi_data_dir = "J:/javej/drought/drought_et/dmi_climate_grid/sorted_et_files/"
-
-    # ETAdjuster(et_files, output_dir, dmi_data_dir).run()
-
-
-
+        output_dir = os.path.join(dmi_raster_dir, os.path.basename(et_dir))
+        ETRasterBuilder(et_files, output_dir, dmi_data_dir).build_dmi_data_raster()
 
 
 
