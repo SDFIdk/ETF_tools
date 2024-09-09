@@ -67,9 +67,10 @@ class ETPlotter:
     
 
     def run_all_plots(self):
-        # self.plot_all_data()
-        # self.plot_data_by_location()
+        self.plot_all_data()
+        self.plot_data_by_location()
         self.plot_data_by_location_with_ratio()
+        self.plot_data_by_adjustment()
 
 
     def build_label(self, csv_file):
@@ -158,6 +159,43 @@ class ETPlotter:
         # plt.show()
 
 
+    def plot_data_by_adjustment(self):
+        """
+        Generates a separate plot for each adjustment, including all entries associated with that adjustment.
+        """
+        
+        # Group data by adjustment
+        grouped_by_adjustment = {}
+        for csv_file, metadata in self.data_table.items():
+            if metadata.adjustment not in grouped_by_adjustment:
+                grouped_by_adjustment[metadata.adjustment] = []
+            grouped_by_adjustment[metadata.adjustment].append((csv_file, metadata))
+
+        for adjustment, data_list in grouped_by_adjustment.items():
+            plt.figure(figsize=(10, 6))
+
+            for csv_file, metadata in data_list:
+                data = self.get_csv_data(csv_file)
+
+                plt.plot(
+                    data['date'],
+                    data['average_value'],
+                    label=f"{metadata.location}",
+                    color=self.color_list[metadata.color],
+                    linestyle=self.style_list[metadata.style]
+                )
+
+            output_filename = os.path.join(self.graph_output_dir, f"{adjustment}_data.png")
+
+            plt.ylabel('Daily evaporation [mm]')
+            plt.title(f'Daily average ET measurements for adjustment {adjustment}')
+            plt.legend(loc='best')
+            plt.grid(True)
+
+            plt.savefig(output_filename, dpi=300, bbox_inches='tight')
+            plt.close()
+
+
     def plot_data_by_location(self):
         """
         Generates a separate plot for each location, including all entries associated with that location.
@@ -200,7 +238,7 @@ class ETPlotter:
         1. The top plot shows the original data.
         2. The bottom plot shows the ratio of the two data sets with a center line at y=0.
         """
-        
+
         grouped_by_location = {}
         for csv_file, metadata in self.data_table.items():
             if metadata.location not in grouped_by_location:
@@ -267,9 +305,8 @@ class ETPlotter:
             plt.close()
 
 
-csv_folder = 'test_dir/'
-graph_output_dir = 'test_dir/graphs'
+csv_folder = 'test_dir/et_data'
+graph_output_dir = 'test_dir/et_graphs'
 
 et_plotter = ETPlotter(csv_folder, graph_output_dir)
 et_plotter.run_all_plots()
- 

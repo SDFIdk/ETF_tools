@@ -265,7 +265,6 @@ def download_files(urls, dir_path, num_threads=4):
 
 
 
-
 if __name__ == "__main__":
 
     # test_api(espa_api('user'))
@@ -273,10 +272,10 @@ if __name__ == "__main__":
     start_date = "2023-01-01"
     end_date = "2024-01-01"
 
-    # shape = "shapes/gludsted/POLYGON.shp"
+    shape = "shapes/gludsted/POLYGON.shp"
     # shape = "shapes/skjern/POLYGON.shp"
     # shape = "shapes/soroe/POLYGON.shp"
-    shape = "shapes/voulund/POLYGON.shp"
+    # shape = "shapes/voulund/POLYGON.shp"
 
     destination_dir = "J:/javej/drought/SSEB_files/"
 
@@ -294,16 +293,19 @@ if __name__ == "__main__":
     # CREATE NEW ORDER
     # urls = [url for url in get_download_urls()]    
     # download_files(urls, destination_dir)
-    ls_products, stats = landsat_query.query_landsat_eodag(
-        start_date, 
-        end_date, 
-        shape, 
-        cloudcover=70, 
-        output_stats = True, 
-        figure_name = None
-        )
 
-    print(len(ls_products))
+    # ls_products, stats = landsat_query.query_landsat_eodag(
+    #     start_date, 
+    #     end_date, 
+    #     shape, 
+    #     cloudcover=100, 
+    #     output_stats = True, 
+    #     figure_name = None
+    #     )
+    # print(len(ls_products))
+
+
+
     
     # order = build_espa_order(ls_products, product_type = ['et'], resample = 'cc', data_format = 'gtiff', note = None)
     # place_order(order)

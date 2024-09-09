@@ -157,39 +157,40 @@ def build_csv_name(model, location_name):
 
     return os.path.join(output_dir, f'{csv_label}_{location_name}.csv')
 
+if __name__ == "__main__":
 
-# et_file_dir = "J:/javej/drought/drought_et/METRIC/"
-# model = 'metric'
+    # et_file_dir = "J:/javej/drought/drought_et/METRIC/"
+    # model = 'metric'
 
-# et_file_dir = "J:/javej/drought/drought_et/adjusted_SSEB/"
-# model = 'sseb_adj'
+    # et_file_dir = "J:/javej/drought/drought_et/adjusted_SSEB/"
+    # model = 'sseb_adj'
 
-et_file_dir = "J:/javej/drought/drought_et/SSEB_files/"
-model = 'sseb_unadj'
+    et_file_dir = "J:/javej/drought/drought_et/SSEB_files/"
+    model = 'sseb_unadj'
 
-# output_dir = "J:/javej/drought/drought_et/time_series/"
-output_dir = 'test_dir/'
+    # output_dir = "J:/javej/drought/drought_et/time_series/"
+    output_dir = 'test_dir/et_data/'
 
-#lon, lat and directory in the et_file dir
-et_sample_points = [
-    (55.484757, 11.642088, 'soroe'),
-    (56.038813, 9.160688, 'voulund'),
-    (55.913856, 8.401428, 'skjern'),
-    (56.075209, 9.333798, 'gludsted')
-]
+    #lon, lat and directory in the et_file dir
+    et_sample_points = [
+        (55.484757, 11.642088, 'soroe'),
+        (56.038813, 9.160688, 'voulund'),
+        (55.913856, 8.401428, 'skjern'),
+        (56.075209, 9.333798, 'gludsted')
+    ]
 
-os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
 
-for data in et_sample_points:
-    lon, lat, location_name = data
+    for data in et_sample_points:
+        lon, lat, location_name = data
 
-    csv_name = build_csv_name(model, location_name)
+        csv_name = build_csv_name(model, location_name)
 
-    results = sample_geotiffs_in_radius(
-        os.path.join(et_file_dir, location_name + '/'), 
-        lat, 
-        lon, 
-        model, 
-    )
+        results = sample_geotiffs_in_radius(
+            os.path.join(et_file_dir, location_name + '/'), 
+            lat, 
+            lon, 
+            model, 
+        )
 
-    save_results_to_csv(results, csv_name)
+        save_results_to_csv(results, csv_name)
