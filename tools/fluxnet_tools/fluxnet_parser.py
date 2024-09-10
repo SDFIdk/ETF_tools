@@ -1,55 +1,69 @@
 import pandas as pd
+import pytz
 import glob 
+import os
 
-def open_csv(file_path):
-    """
-    Opens a CSV file and returns it as a pandas DataFrame.
+def standardize_icos_data(input_csv, output_csv, date_range=None):
+
+    df = pd.read_csv(input_csv)
+
+    df['id'] = range(len(df))
+
+    # Convert TIMESTAMP_START to datetime and then to CET timezone, extract the date part
+    utc = pytz.utc
+    cet = pytz.timezone('CET')
+    df['date'] = pd.to_datetime(df['TIMESTAMP_START'], format='%Y%m%d%H%M')
+    df['date'] = df['date'].apply(lambda x: utc.localize(x).astimezone(cet).strftime('%Y%m%d'))
+
+    if date_range:
+        from_date, to_date = date_range
+        df = df[(df['date'] >= from_date) & (df['date'] <= to_date)]
+
+    df = df[df['LE'] != -9999]
+
+    # Convert H to ET using the formula: 
+    # ET = (LE * 30 * 60) / (2.45 * 1000000)
+    # LE = Latent heat [W/m^2], L_v = latent heat of vaporization [MJ/kg]
+    L_v = 2.45
+    df['ET'] = (df['LE'] * 30 * 60) / (L_v * 1000000)
+    # Set negative ET values to 0
+    df['ET'] = df['ET'].apply(lambda x: max(x, 0))
+
+    # Group by 'date' and sum the ET values to get daily totals and aggregate to daily total
+    daily_totals = df.groupby('date')['ET'].sum().reset_index()
+    daily_totals['id'] = range(len(daily_totals))
+
+    result_df = daily_totals[['id', 'date', 'ET']]
+    if result_df.empty:
+        print(f"Warning: No data available for {date_range[0]} to {date_range[1]} in {output_csv}")
+        return
     
-    Parameters:
-    - file_path (str): Path to the CSV file.
+    result_df.to_csv(output_csv, index=False)
+
+
+if __name__ == "__main__":
     
-    Ret
-    urns:
-    - pd.DataFrame: DataFrame containing the CSV data.
-    """
-    return pd.read_csv(file_path, parse_dates=True, index_col='timestamp')  # Assuming 'timestamp' is the time column
+    icos_dir = 'J:/javej/drought/drought_et/icos_data/'
+    output_dir = 'test_dir/icos_data/'
 
+    os.makedirs(output_dir, exist_ok=True)
 
-def resample_to_24hr(df):
-    """
-    Resamples the data to 24-hour timesteps via addition.
-    
-    Parameters:
-    - df (pd.DataFrame): DataFrame containing the half-hourly data.
-    
-    Returns:
-    - pd.DataFrame: Resampled DataFrame with 24-hour timesteps.
-    """
-    return df.resample('24H').sum()
+    name_table = {
+        'DK-Vng': 'voulund',
+        'DK-Sor': 'soroe',
+        'DK-Skj': 'skjern',
+        'DK-Gds': 'gludsted',
+        }
 
+    for icos_csv in glob.glob(icos_dir + '*.csv'):
 
-def save_to_csv(df, original_file_path):
-    """
-    Saves the resampled DataFrame to a new CSV file with '_24hr' appended to the filename.
-    
-    Parameters:
-    - df (pd.DataFrame): Resampled DataFrame with 24-hour timesteps.
-    - original_file_path (str): The original CSV file path.
-    """
-    new_file_path = original_file_path.replace('.csv', '_24hr.csv')
-    df.to_csv(new_file_path)
+        if '!TOC.csv' in icos_csv: 
+            continue
 
+        location = name_table[(os.path.basename(icos_csv).split('_')[1])]
+        output_filename = f'ICOS_ETC-L2_{location}.csv'
+        output_csv = os.path.join(output_dir, output_filename)
 
-def process_csv(file_path):
-    df = open_csv(file_path)
-    df_24hr = resample_to_24hr(df)
-    save_to_csv(df_24hr, file_path)
+        date_range = ['20230101', '20240101']
 
-
-
-fluxnet_data = 'path to J drive'
-output_folder = 'another path to J drive'
-
-for file_path in glob.glob(fluxnet_data + '*.csv'):
-
-    process_csv(file_path, output_folder)
+        standardize_icos_data(icos_csv, output_csv, date_range)

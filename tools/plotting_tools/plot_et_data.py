@@ -1,151 +1,75 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-from collections import namedtuple
-import glob
 import os
-import sys
 import numpy as np
+import sys
+
+from plot_table_tools import PlotTableTools
+from plot_utils import PlotUtils
 
 class ETPlotter:
 
-    def __init__(self, csv_folder, graph_output_dir):
-        self.csv_files = csv_folder
-        self.csv_files = glob.glob(os.path.join(csv_folder, "*.csv"))
+    def __init__(self, et_data, graph_output_dir, ground_truth_data = None, cloud_cover_data = None):
 
         self.graph_output_dir = graph_output_dir
         os.makedirs(graph_output_dir, exist_ok=True)
 
-        self.data_table = self.build_data_table()
+        self.et_data_table = PlotTableTools.build_et_data_table(et_data)
+
+        if not ground_truth_data == None:
+            self.truth_data_table = PlotTableTools.build_truth_data_table(ground_truth_data)
+        else: self.truth_data_table = None
+
+        if not cloud_cover_data == None:
+            self.cloud_data_table = PlotTableTools.build_cloud_data_table(cloud_cover_data)
+        else: self.cloud_data_table = None
 
         self.location_style = {} 
-        self.color_list = plt.rcParams['axes.prop_cycle'].by_key()['color']
-        self.style_list = ['-', '--', '-.', ':']
+        self.et_color_list = plt.rcParams['axes.prop_cycle'].by_key()['color']
+        self.et_style_list = ['-', '--', '-.']
 
-
-    def build_data_table(self):
-        """
-        Builds a lookup table using data from CSV files.
-
-        This method processes a list of CSV files, extracts relevant metadata (such as model, adjustment, and location)
-        from the filenames, assigns a unique color and line style to each location, and stores the data in a namedtuple.
-        It returns a lookup table where each key corresponds to a CSV file and its value is a namedtuple containing the 
-        following fields:
-        
-        - `model`: (str) ET model name
-        - `adjustment`: (str) Data source for adjusting ET fraction to  ETA
-        - `location`: (str) Measurement location
-        - `color`: (int) Color index in self.color_list
-        - `style`: (int) Style index in self.line_styles
-        - `label`: (str) Plot label for legends
-
-        Returns:
-        --------
-        - `lookup_table`: A dictionary where keys are CSV file paths and values are namedtuples.
-        """
-
-        ntuple = namedtuple('Dataset', ['model', 'adjustment', 'location', 'color', 'style', 'label'])
-
-        lookup_table = {}
-        location_styles = {}
-
-        for csv_file in self.csv_files:
-
-            model, adjustment, location = os.path.splitext(os.path.basename(csv_file))[0].split('_')
-            label = self.build_label(csv_file)
-
-            if location in location_styles:
-                color, current_style = location_styles[location]
-                style = current_style + 1
-            else:
-                color = len(location_styles)
-                style = 0
-                location_styles[location] = (color, style)
-
-            lookup_table[csv_file] = ntuple(model, adjustment, location, color, style, label)
-
-        return lookup_table
-    
 
     def run_all_plots(self):
-        self.plot_all_data()
+        # self.plot_all_data()
         self.plot_data_by_location()
-        self.plot_data_by_location_with_ratio()
-        self.plot_data_by_adjustment()
-
-
-    def build_label(self, csv_file):
-
-        csv_file = os.path.splitext(os.path.basename(csv_file))[0]
-        model, adjustment, location = csv_file.split('_')
-
-        return f'{adjustment} adjusted {model}, {location}'
-    
-
-    def get_model(self, csv_file):
-        return os.path.splitext(os.path.basename(csv_file))[0].split('_')[0]
-    
-    
-    def get_adjustment(self, csv_file):
-        return os.path.splitext(os.path.basename(csv_file))[0].split('_')[1]
-    
-    
-    def get_location(self, csv_file):
-        return os.path.splitext(os.path.basename(csv_file))[0].split('_')[2]
+        # self.plot_data_by_location_with_ratio()
+        # self.plot_data_by_adjustment()
     
 
     def update_style_dict(self, csv_file):
-        location = self.get_location(csv_file)
+        location = PlotUtils.get_location(csv_file)
         if not location in self.location_style:
 
             #position in color list is determined by number location entries
             color_position = len(self.location_style)    
             self.location_style[location] = [color_position, 0]
 
-            line_color = self.color_list[color_position]
-            line_style = self.style_list[0]
+            line_color = self.et_color_list[color_position]
+            line_style = self.et_style_list[0]
             return line_color, line_style
         
         self.location_style[location][1] += 1    #get new line style, keep same color
 
-        line_color = self.color_list[self.location_style[location][0]]
-        line_style = self.style_list[self.location_style[location][1]]
+        line_color = self.et_color_list[self.location_style[location][0]]
+        line_style = self.et_style_list[self.location_style[location][1]]
 
         return line_color, line_style
     
-    
-    def get_csv_data(self, csv_file):
-        """
-        Opens ET data csv files and returns a sorted and filtered dataframe
-        """
-
-        df = pd.read_csv(csv_file, usecols=["filename", "date", "average_value"])
-
-        try:
-            df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
-        except: 
-            print(df['date'])
-            return
-
-        df = df[df['average_value'] >= 0]
-        df = df.sort_values(by='date')
-
-        return df    
-
 
     def plot_all_data(self):
 
         plt.figure(figsize=(10, 6))
 
-        for csv_file, metadata in self.data_table.items():
+        for csv_file, metadata in self.et_data_table.items():
             
-            data = self.get_csv_data(csv_file)
+            data = PlotUtils.get_csv_data(csv_file)
 
             plt.plot(
                 data['date'], 
                 data['average_value'], 
                 label = metadata.label, 
-                color = self.color_list[metadata.color], 
-                linestyle = self.style_list[metadata.style]
+                color = self.et_color_list[metadata.color], 
+                linestyle = self.et_style_list[metadata.style]
             )
 
         output_filename = os.path.join(self.graph_output_dir, 'all_data.png')
@@ -166,7 +90,7 @@ class ETPlotter:
         
         # Group data by adjustment
         grouped_by_adjustment = {}
-        for csv_file, metadata in self.data_table.items():
+        for csv_file, metadata in self.et_data_table.items():
             if metadata.adjustment not in grouped_by_adjustment:
                 grouped_by_adjustment[metadata.adjustment] = []
             grouped_by_adjustment[metadata.adjustment].append((csv_file, metadata))
@@ -175,14 +99,14 @@ class ETPlotter:
             plt.figure(figsize=(10, 6))
 
             for csv_file, metadata in data_list:
-                data = self.get_csv_data(csv_file)
+                data = PlotUtils.get_csv_data(csv_file)
 
                 plt.plot(
                     data['date'],
                     data['average_value'],
                     label=f"{metadata.location}",
-                    color=self.color_list[metadata.color],
-                    linestyle=self.style_list[metadata.style]
+                    color=self.et_color_list[metadata.color],
+                    linestyle=self.et_style_list[metadata.style]
                 )
 
             output_filename = os.path.join(self.graph_output_dir, f"{adjustment}_data.png")
@@ -196,13 +120,13 @@ class ETPlotter:
             plt.close()
 
 
-    def plot_data_by_location(self):
+    def plot_data_by_location(self, plot_cloud_cover = False, plot_ground_truth = False):
         """
         Generates a separate plot for each location, including all entries associated with that location.
         """
 
         grouped_by_location = {}
-        for csv_file, metadata in self.data_table.items():
+        for csv_file, metadata in self.et_data_table.items():
             if metadata.location not in grouped_by_location:
                 grouped_by_location[metadata.location] = []
             grouped_by_location[metadata.location].append((csv_file, metadata))
@@ -211,15 +135,27 @@ class ETPlotter:
             plt.figure(figsize=(10, 6))
 
             for csv_file, metadata in data_list:
-                data = self.get_csv_data(csv_file)
+                data = PlotUtils.get_csv_data(csv_file)
 
                 plt.plot(
                     data['date'],
                     data['average_value'],
                     label=f"{metadata.model} {metadata.adjustment}",
-                    color=self.color_list[metadata.color],
-                    linestyle=self.style_list[metadata.style]
+                    color=self.et_color_list[metadata.color],
+                    linestyle=self.et_style_list[metadata.style]
                 )
+
+            #TODO GET THE RELEVANT CLOUD AND TRUTH DATA FROM THE TABLES AND PLOT THEM
+
+            # print(csv_file)
+            # print('AAAA')
+            # sys.exit()
+
+            if not self.cloud_cover_data == None and plot_cloud_cover:
+                plt.plot(
+                    self.cloud_data_table
+                )
+
 
             output_filename = os.path.join(self.graph_output_dir, f"{location}_data.png")
 
@@ -240,7 +176,7 @@ class ETPlotter:
         """
 
         grouped_by_location = {}
-        for csv_file, metadata in self.data_table.items():
+        for csv_file, metadata in self.et_data_table.items():
             if metadata.location not in grouped_by_location:
                 grouped_by_location[metadata.location] = []
             grouped_by_location[metadata.location].append((csv_file, metadata))
@@ -254,14 +190,14 @@ class ETPlotter:
 
             # First plot: Original data
             for csv_file, metadata in data_list:
-                data = self.get_csv_data(csv_file)
+                data = PlotUtils.get_csv_data(csv_file)
 
                 ax1.plot(
                     data['date'],
                     data['average_value'],
                     label=f"{metadata.model} {metadata.adjustment}",
-                    color=self.color_list[metadata.color],
-                    linestyle=self.style_list[metadata.style]
+                    color=self.et_color_list[metadata.color],
+                    linestyle=self.et_style_list[metadata.style]
                 )
 
             ax1.set_ylabel('Daily evaporation [mm]')
@@ -270,8 +206,8 @@ class ETPlotter:
             ax1.grid(True)
 
             # Second plot: Ratio between the two plots
-            data1 = self.get_csv_data(data_list[0][0])
-            data2 = self.get_csv_data(data_list[1][0])
+            data1 = PlotUtils.get_csv_data(data_list[0][0])
+            data2 = PlotUtils.get_csv_data(data_list[1][0])
 
             data1['date'] = pd.to_datetime(data1['date'])
             data2['date'] = pd.to_datetime(data2['date'])
@@ -305,8 +241,14 @@ class ETPlotter:
             plt.close()
 
 
-csv_folder = 'test_dir/et_data'
-graph_output_dir = 'test_dir/et_graphs'
+et_csv_folder = 'test_dir/et_data/'
+icos_csv_folder = 'test_dir/icos_data/'
+cloud_cover_csv_folder = 'test_dir/cloud_cover_data/'
+graph_output_dir = 'test_dir/et_graphs/'
 
-et_plotter = ETPlotter(csv_folder, graph_output_dir)
+et_plotter = ETPlotter(
+    et_data = et_csv_folder,
+    graph_output_dir = graph_output_dir, 
+    ground_truth_data = icos_csv_folder,
+    cloud_cover_data = cloud_cover_csv_folder)
 et_plotter.run_all_plots()

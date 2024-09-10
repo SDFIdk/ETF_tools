@@ -18,8 +18,8 @@ import os
 import sys
 import time
 
-from tools.dmi_data_parser.dmi_tools import DMITools
-from tools.et_adjustment.raster_tools import RasterTools
+from tools.dmi_tools.dmi_tools import DMITools
+from tools.et_tools.raster_tools import RasterTools
 
 #TODO Change names of outputs from ETF to ETAajdust or something
 

@@ -6,8 +6,8 @@ from shapely.geometry import Polygon
 import sys
 import numpy as np
 import os
-from tools.dmi_data_parser.dmi_tools import DMITools
-from tools.et_adjustment.json_utils import JSONUtils
+from tools.dmi_tools.dmi_tools import DMITools
+from tools.et_tools.json_utils import JSONUtils
 
 class RasterTools:
     """
