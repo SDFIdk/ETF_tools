@@ -65,15 +65,19 @@ if __name__ == "__main__":
         "shapes/voulund/POLYGON.shp",
     ]
 
+    auxdata_type = 'cloudcover'
+    product_type = 'LANDSAT_C2L2'
+    output_dir = 'test_dir/aux_data/'
+
     for shape in shapes:
-        product_type = 'LANDSAT_C2L2'
 
         location =  os.path.basename(os.path.dirname(shape))
-        source, product = product_type.split('_')
-        csv_file = f'{source}_{product}_{location}.csv'
-        csv_dir = "test_dir/cloud_cover_data/"
-        output_csv = os.path.join(csv_dir, csv_file)
-        os.makedirs(csv_dir, exist_ok=True)
+        product = product_type.replace('_', '-')
+
+        csv_file = f'{auxdata_type}_{product}_{location}.csv'
+
+        output_csv = os.path.join(output_dir, csv_file)
+        os.makedirs(output_dir, exist_ok=True)
 
         get_cloud_cover(
             start_date, 

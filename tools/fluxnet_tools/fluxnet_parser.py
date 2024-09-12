@@ -44,9 +44,13 @@ def standardize_icos_data(input_csv, output_csv, date_range=None):
 if __name__ == "__main__":
     
     icos_dir = 'J:/javej/drought/drought_et/icos_data/'
-    output_dir = 'test_dir/icos_data/'
+    output_dir = 'test_dir/aux_data/'
+
+    auxdata_type = 'groundtruth'
+    product = 'ICOS-ETC-L2'
 
     os.makedirs(output_dir, exist_ok=True)
+
 
     name_table = {
         'DK-Vng': 'voulund',
@@ -61,7 +65,7 @@ if __name__ == "__main__":
             continue
 
         location = name_table[(os.path.basename(icos_csv).split('_')[1])]
-        output_filename = f'ICOS_ETC-L2_{location}.csv'
+        output_filename = f'{auxdata_type}_{product}_{location}.csv'
         output_csv = os.path.join(output_dir, output_filename)
 
         date_range = ['20230101', '20240101']

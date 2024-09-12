@@ -1,9 +1,10 @@
 from collections import namedtuple
 import os
 import glob
+from pprint import pprint
 import sys
 
-class PlotTableTools:
+class DataTableTools:
     def build_et_data_table(csv_files):
         """
         Builds a lookup table using data from CSV files.
@@ -54,7 +55,7 @@ class PlotTableTools:
         return lookup_table
     
 
-    def build_cloud_data_table(csv_files):
+    def build_cloud_data_table(csv_files, aux_data_table):
         """
         Builds a lookup table using data from CSV files.
 
@@ -77,7 +78,6 @@ class PlotTableTools:
 
         ntuple = namedtuple('Dataset', ['source', 'product', 'location', 'color', 'style', 'label'])
 
-        lookup_table = {}
         for csv_file in glob.glob(os.path.join(csv_files, "*.csv")):
             source, product, location = os.path.splitext(os.path.basename(csv_file))[0].split('_')
             label = f'{source}_{product} scene cloud cover for {location}'
@@ -85,12 +85,12 @@ class PlotTableTools:
             color = 'skyblue'
             style = ':'
 
-            lookup_table[csv_file] = ntuple(source, product, location, color, style, label)
+            aux_data_table[csv_file] = ntuple(source, product, location, color, style, label)
 
-        return lookup_table
+        return aux_data_table
     
     
-    def build_truth_data_table(csv_files):
+    def build_truth_data_table(csv_files, aux_data_table):
         """
         Builds a lookup table for ground truth data using data from CSV files.
 
@@ -110,7 +110,6 @@ class PlotTableTools:
 
         ntuple = namedtuple('Dataset', ['source', 'product', 'location', 'color', 'style', 'label'])
 
-        lookup_table = {}
         for csv_file in glob.glob(os.path.join(csv_files, "*.csv")):
 
             source, product, location = os.path.splitext(os.path.basename(csv_file))[0].split('_')
@@ -119,6 +118,51 @@ class PlotTableTools:
             color = 'black'
             style = ':'
 
-            lookup_table[csv_file] = ntuple(source, product, location, color, style, label)
+            aux_data_table[csv_file] = ntuple(source, product, location, color, style, label)
 
-        return lookup_table
+        return aux_data_table
+    
+
+    def assemble_adjustment_data(et_data_table):
+
+        adjustment_table = {}
+        for csv_file, metadata in et_data_table.items():
+            if metadata.adjustment not in adjustment_table:
+                adjustment_table[metadata.adjustment] = []
+            adjustment_table[metadata.adjustment].append((csv_file, metadata))
+
+        return adjustment_table
+
+
+    def build_aux_table(csv_files):
+        """
+        Builds a lookup table for ground truth data using data from CSV files.
+
+        ground truth 
+        
+        - `auxtype`: (str) Type of aux data, either cloudcover or groundtruth
+        - `product`: (str) Product label from source
+        - `location`: (str) Measurement location
+        - `color`: (int) Color (always black)
+        - `style`: (int) Style (always dotted)
+        - `label`: (str) Plot label for legends
+
+        Returns:
+        --------
+        - `lookup_table`: A dictionary where keys are CSV file paths and values are namedtuples.
+        """
+
+        ntuple = namedtuple('Dataset', ['auxtype', 'product', 'location', 'label'])
+        aux_data_table = {}
+        for csv_file in glob.glob(os.path.join(csv_files, "*.csv")):
+
+            auxtype, product, location = os.path.splitext(os.path.basename(csv_file))[0].split('_')
+            label = f'{auxtype}_{product} derived ground truth for {location}'
+
+            aux_data_table[csv_file] = ntuple(auxtype, product, location, label)
+
+        return aux_data_table
+    
+
+
+            

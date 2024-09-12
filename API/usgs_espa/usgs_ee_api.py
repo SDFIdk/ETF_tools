@@ -81,7 +81,7 @@ def downloadFile(url):
         open(path + filename, 'wb').write(response.content)
         print(f"Downloaded {filename}\n")
         sema.release()
-    except Exception as e:
+    except  as e:
         print(f"Failed to download from {url}. {e}. Will try to re-download.")
         sema.release()
         runDownload(threads, url)
