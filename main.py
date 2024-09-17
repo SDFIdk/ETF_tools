@@ -21,8 +21,6 @@ import time
 from tools.dmi_tools.dmi_tools import DMITools
 from tools.et_tools.raster_tools import RasterTools
 
-#TODO Change names of outputs from ETF to ETAajdust or something
-
 class ETRasterBuilder:
     """
     Tools for making and localizing ET data

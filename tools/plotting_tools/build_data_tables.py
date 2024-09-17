@@ -4,7 +4,7 @@ import glob
 from pprint import pprint
 import sys
 
-class DataTableTools:
+class DataTableBuilder:
     def build_et_data_table(csv_files):
         """
         Builds a lookup table using data from CSV files.
@@ -157,7 +157,10 @@ class DataTableTools:
         for csv_file in glob.glob(os.path.join(csv_files, "*.csv")):
 
             auxtype, product, location = os.path.splitext(os.path.basename(csv_file))[0].split('_')
-            label = f'{auxtype}_{product} derived ground truth for {location}'
+            if auxtype == 'cloudcover':
+                label = f'{product} derived cloud cover for {location}'
+            elif auxtype == 'groundtruth':
+                label = f'{product} derived ground truth for {location}'
 
             aux_data_table[csv_file] = ntuple(auxtype, product, location, label)
 

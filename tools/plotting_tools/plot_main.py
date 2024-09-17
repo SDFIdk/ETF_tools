@@ -5,8 +5,9 @@ import numpy as np
 import sys
 from pprint import pprint
 
-from plot_table_tools import DataTableTools
-from plot_utils import DataTableUtils
+from build_data_tables import DataTableBuilder
+from data_table_utils import DataTableUtils
+from aux_plotting_tools import AuxPlottingTools
 
 class ETPlotter:
 
@@ -15,12 +16,11 @@ class ETPlotter:
         self.graph_output_dir = graph_output_dir
         os.makedirs(graph_output_dir, exist_ok=True)
 
-        self.et_data_table = DataTableTools.build_et_data_table(et_data)
+        self.et_data_table = DataTableBuilder.build_et_data_table(et_data)
 
         self.aux_data_table = {}
-
         if not aux_data == None:
-            self.aux_data_table = DataTableTools.build_aux_table(aux_data)
+            self.aux_data_table = DataTableBuilder.build_aux_table(aux_data)
 
         self.location_style = {} 
         self.et_color_list = plt.rcParams['axes.prop_cycle'].by_key()['color']
@@ -29,9 +29,9 @@ class ETPlotter:
 
     def run_all_plots(self):
         # self.plot_all_data()
-        # self.plot_data_by_location()
+        self.plot_data_by_location(plot_cloud_cover = True, resample_time='W')
         # self.plot_data_by_location_with_ratio()
-        self.plot_data_by_adjustment()
+        # self.plot_data_by_adjustment(cloud_resample='W')
     
 
     def update_style_dict(self, csv_file):
@@ -78,47 +78,15 @@ class ETPlotter:
         plt.grid(True)
 
         plt.savefig(output_filename, dpi=300, bbox_inches='tight')
-        # plt.show()
 
 
-    # def plot_data_by_adjustment(self):
-    #     """
-    #     Generates a separate plot for each adjustment, including all entries associated with that adjustment.
-    #     """
-        
-    #     grouped_by_adjustment = PlotTableTools.assemble_adjustment_data(self.et_data_table)
-
-    #     for adjustment, data_list in grouped_by_adjustment.items():
-    #         plt.figure(figsize=(10, 6))
-
-    #         for csv_file, metadata in data_list:
-    #             data = PlotUtils.get_csv_data(csv_file)
-
-    #             plt.plot(
-    #                 data['date'],
-    #                 data['average_value'],
-    #                 label=f"{metadata.location}",
-    #                 color=self.et_color_list[metadata.color],
-    #                 linestyle=self.et_style_list[metadata.style]
-    #             )
-
-    #         plt.ylabel('Daily evaporation [mm]')
-    #         plt.title(f'Daily average ET measurements for adjustment {adjustment}')
-    #         plt.legend(loc='best')
-    #         plt.grid(True)
-
-    #         output_filename = os.path.join(self.graph_output_dir, f"{adjustment}_data.png")
-    #         plt.savefig(output_filename, dpi=300, bbox_inches='tight')
-    #         plt.close()
-
-
-    def plot_data_by_adjustment(self):
+    def plot_data_by_adjustment(self, cloud_resample = None):
         """
         Generates a separate plot for each adjustment, including all entries associated with that adjustment.
         This function also adds auxiliary data (cloud cover, ground truth, etc.) to the plot if available.
         """
 
-        grouped_by_adjustment = DataTableTools.assemble_adjustment_data(self.et_data_table)
+        grouped_by_adjustment = DataTableBuilder.assemble_adjustment_data(self.et_data_table)
 
         for adjustment, data_list in grouped_by_adjustment.items():
             fig, ax1 = plt.subplots(figsize=(10, 6))
@@ -134,49 +102,14 @@ class ETPlotter:
                     color=self.et_color_list[metadata.color],
                     linestyle=self.et_style_list[metadata.style]
                 )
-
             ax1.set_ylabel('Daily evaporation [mm]')
             ax1.set_title(f'Daily average ET measurements for adjustment {adjustment}')
-            
-            # Initialize secondary axes for auxiliary data
-            ax2, ax3 = None, None  # These are placeholders for the right and secondary left axes
 
-            # Loop through auxiliary data and plot it
-            for aux_file, aux_metadata in self.aux_data_table.items():
+            # ax2, ax3 = AuxPlottingTools.plot_all_aux(ax1, self.aux_data_table)
+            ax2 = AuxPlottingTools.plot_avg_cloudcover(ax1, self.aux_data_table, resample_time = cloud_resample)
 
-                #TODO MODIFY THE get_aux_csv_data FUNCTION TO DELIVER DATA FROM THE AUXFILES
-                #FUNCTION IS CURRENTLY JUST A COPY OF get_et_csv_data
-                aux_data = DataTableUtils.get_aux_csv_data(aux_file)
+            ax3 = None
 
-                # Get line style info for auxiliary data
-                color, style, axis, plot_type = DataTableUtils.get_aux_linestyles(aux_metadata.auxtype)
-
-                if axis == 'left':
-                    if plot_type == 'bar':
-                        ax1.bar(aux_data['date'], aux_data['value'], label=aux_metadata.label, color=color)
-                    else:
-                        ax1.plot(aux_data['date'], aux_data['value'], label=aux_metadata.label, color=color, linestyle=style)
-
-                elif axis == 'right':
-                    if not ax2:
-                        ax2 = ax1.twinx()
-                        ax2.set_ylabel('Cloud cover (%)')  # Adjust as necessary for the auxiliary type
-                    if plot_type == 'bar':
-                        ax2.bar(aux_data['date'], aux_data['value'], label=aux_metadata.label, color=color)
-                    else:
-                        ax2.plot(aux_data['date'], aux_data['value'], label=aux_metadata.label, color=color, linestyle=style)
-
-                elif axis == 'second_left':
-                    if not ax3:
-                        ax3 = ax1.twinx()
-                        ax3.spines['left'].set_position(('outward', 60))  # Offset the second left axis
-                        ax3.set_ylabel('Ground truth')  # Adjust as necessary
-                    if plot_type == 'bar':
-                        ax3.bar(aux_data['date'], aux_data['value'], label=aux_metadata.label, color=color)
-                    else:
-                        ax3.plot(aux_data['date'], aux_data['value'], label=aux_metadata.label, color=color, linestyle=style)
-
-            # Set legends and formatting for the plot
             ax1.legend(loc='upper left')
             if ax2:
                 ax2.legend(loc='upper right')
@@ -230,8 +163,8 @@ class ETPlotter:
                     linestyle=':'
                 )
 
-
-    def plot_data_by_location(self, plot_cloud_cover = False, plot_ground_truth = False):
+            
+    def plot_data_by_location(self, plot_cloud_cover=False, plot_ground_truth=False, resample_time=None):
         """
         Generates a separate plot for each location, including all entries associated with that location.
         """
@@ -243,12 +176,12 @@ class ETPlotter:
             grouped_by_location[metadata.location].append((csv_file, metadata))
 
         for location, data_list in grouped_by_location.items():
-            plt.figure(figsize=(10, 6))
+            fig, ax1 = plt.subplots(figsize=(10, 6))
 
             for csv_file, metadata in data_list:
                 data = DataTableUtils.get_et_csv_data(csv_file)
 
-                plt.plot(
+                ax1.plot(
                     data['date'],
                     data['average_value'],
                     label=f"{metadata.model} {metadata.adjustment}",
@@ -256,25 +189,36 @@ class ETPlotter:
                     linestyle=self.et_style_list[metadata.style]
                 )
 
-            if plot_cloud_cover:
-                self.plot_cloud_cover(location)
+            ax2 = None
+            if not plot_cloud_cover is None:
+                ax2 = AuxPlottingTools.plot_cloudcover(
+                    ax1,
+                    self.aux_data_table,
+                    location=location,
+                    resample_time=resample_time
+                )
 
-            # Conditionally plot ground truth
+            ax3 = None
             if plot_ground_truth:
                 self.plot_ground_truth(location)
 
+            ax1.legend(loc='upper left')
+            if ax2:
+                ax2.legend(loc='upper right')
+            if ax3:
+                ax3.legend(loc='lower left')
+
+            ax1.set_ylabel('Daily evaporation [mm]')
+            ax1.set_title(f'Daily average ET measurements for {location}')
+            ax1.legend(loc='best')
+            ax1.grid(True)
 
             output_filename = os.path.join(self.graph_output_dir, f"{location}_data.png")
+            fig.savefig(output_filename, dpi=300, bbox_inches='tight')
 
-            plt.ylabel('Daily evaporation [mm]')
-            plt.title(f'Daily average ET measurements for {location}')
-            plt.legend(loc='best')
-            plt.grid(True)
+            plt.close(fig)
 
-            plt.savefig(output_filename, dpi=300, bbox_inches='tight')
-            # plt.show()
-            plt.close()
-            
+
     def plot_data_by_location_with_ratio(self):
         """
         Generates two subplots for each location:
