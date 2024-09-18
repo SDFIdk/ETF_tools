@@ -133,7 +133,6 @@ class dmi_climate_data_parser:
                 match = False
                 break
 
-        # sys.exit()
         if match:
             return json_str
 

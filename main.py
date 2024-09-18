@@ -103,15 +103,19 @@ class ETRasterBuilder:
 if __name__ == '__main__':
     
     et_dirs = [
-        'J:/javej/drought/drought_et/SSEB_files/voulund',
-        'J:/javej/drought/drought_et/SSEB_files/soroe',
-        'J:/javej/drought/drought_et/SSEB_files/skjern',
+        # 'J:/javej/drought/drought_et/SSEB_files/voulund',
+        # 'J:/javej/drought/drought_et/SSEB_files/soroe',
+        # 'J:/javej/drought/drought_et/SSEB_files/skjern',
+        # 'J:/javej/drought/drought_et/SSEB_files/gludsted'
         'J:/javej/drought/drought_et/SSEB_files/gludsted'
     ]
 
     dmi_data_dir = "J:/javej/drought/drought_et/dmi_climate_grid/sorted_et_files/"
-    localized_output = "J:/javej//drought/drought_et/adjusted_SSEB/"
-    dmi_raster_dir = "J:/javej//drought/drought_et/dmi_PET_raster/"
+    # localized_output = "J:/javej//drought/drought_et/adjusted_SSEB/"
+    # dmi_raster_dir = "J:/javej//drought/drought_et/dmi_PET_raster/"
+
+    localized_output = "test_files/localized/"
+    dmi_raster_dir = "terst_files/PET/"
     crs = 'EPSG_4329'
 
     for et_dir in et_dirs:

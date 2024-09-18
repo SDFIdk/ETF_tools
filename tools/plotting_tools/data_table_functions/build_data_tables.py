@@ -53,98 +53,15 @@ class DataTableBuilder:
             lookup_table[csv_file] = ntuple(model, adjustment, location, color, style, label)
 
         return lookup_table
-    
-
-    def build_cloud_data_table(csv_files, aux_data_table):
-        """
-        Builds a lookup table using data from CSV files.
-
-        This method processes a list of CSV files, extracts relevant metadata (such as model, adjustment, and location)
-        from the filenames, assigns a unique color and line style to each location, and stores the data in a namedtuple.
-        It returns a lookup table where each key corresponds to a CSV file and its value is a namedtuple containing the 
-        following fields:
-        
-        - `source`: (str) Distributor of the data
-        - `product`: (str) Product label from source
-        - `location`: (str) Measurement location
-        - `color`: (int) Color (always blue)
-        - `style`: (int) Style (always dotted)
-        - `label`: (str) Plot label for legends
-
-        Returns:
-        --------
-        - `lookup_table`: A dictionary where keys are CSV file paths and values are namedtuples.
-        """
-
-        ntuple = namedtuple('Dataset', ['source', 'product', 'location', 'color', 'style', 'label'])
-
-        for csv_file in glob.glob(os.path.join(csv_files, "*.csv")):
-            source, product, location = os.path.splitext(os.path.basename(csv_file))[0].split('_')
-            label = f'{source}_{product} scene cloud cover for {location}'
-
-            color = 'skyblue'
-            style = ':'
-
-            aux_data_table[csv_file] = ntuple(source, product, location, color, style, label)
-
-        return aux_data_table
-    
-    
-    def build_truth_data_table(csv_files, aux_data_table):
-        """
-        Builds a lookup table for ground truth data using data from CSV files.
-
-        ground truth 
-        
-        - `source`: (str) Distributor of the data
-        - `product`: (str) Product label from source
-        - `location`: (str) Measurement location
-        - `color`: (int) Color (always black)
-        - `style`: (int) Style (always dotted)
-        - `label`: (str) Plot label for legends
-
-        Returns:
-        --------
-        - `lookup_table`: A dictionary where keys are CSV file paths and values are namedtuples.
-        """
-
-        ntuple = namedtuple('Dataset', ['source', 'product', 'location', 'color', 'style', 'label'])
-
-        for csv_file in glob.glob(os.path.join(csv_files, "*.csv")):
-
-            source, product, location = os.path.splitext(os.path.basename(csv_file))[0].split('_')
-            label = f'{source}_{product} derived ground truth for {location}'
-
-            color = 'black'
-            style = ':'
-
-            aux_data_table[csv_file] = ntuple(source, product, location, color, style, label)
-
-        return aux_data_table
-    
-
-    def assemble_adjustment_data(et_data_table):
-
-        adjustment_table = {}
-        for csv_file, metadata in et_data_table.items():
-            if metadata.adjustment not in adjustment_table:
-                adjustment_table[metadata.adjustment] = []
-            adjustment_table[metadata.adjustment].append((csv_file, metadata))
-
-        return adjustment_table
 
 
     def build_aux_table(csv_files):
         """
         Builds a lookup table for ground truth data using data from CSV files.
-
-        ground truth 
         
         - `auxtype`: (str) Type of aux data, either cloudcover or groundtruth
         - `product`: (str) Product label from source
         - `location`: (str) Measurement location
-        - `color`: (int) Color (always black)
-        - `style`: (int) Style (always dotted)
         - `label`: (str) Plot label for legends
 
         Returns:
@@ -157,10 +74,18 @@ class DataTableBuilder:
         for csv_file in glob.glob(os.path.join(csv_files, "*.csv")):
 
             auxtype, product, location = os.path.splitext(os.path.basename(csv_file))[0].split('_')
+
+            #could probably reduce to some label lookup dict 
             if auxtype == 'cloudcover':
                 label = f'{product} derived cloud cover for {location}'
             elif auxtype == 'groundtruth':
                 label = f'{product} derived ground truth for {location}'
+            elif auxtype == 'dmi_pet':
+                label = f'{product} derived potential ET (DMI) for {location}'
+            elif auxtype == 'metric_pet':
+                label = f'{product} derived potential ET (METRIC) for {location}'
+            elif auxtype == 'albedo':
+                label = f'{product} derived albedo for {location}'
 
             aux_data_table[csv_file] = ntuple(auxtype, product, location, label)
 
@@ -169,3 +94,36 @@ class DataTableBuilder:
 
 
             
+    # def build_cloud_data_table(csv_files, aux_data_table):
+    #     """
+    #     Builds a lookup table using data from CSV files.
+
+    #     This method processes a list of CSV files, extracts relevant metadata (such as model, adjustment, and location)
+    #     from the filenames, assigns a unique color and line style to each location, and stores the data in a namedtuple.
+    #     It returns a lookup table where each key corresponds to a CSV file and its value is a namedtuple containing the 
+    #     following fields:
+        
+    #     - `source`: (str) Distributor of the data
+    #     - `product`: (str) Product label from source
+    #     - `location`: (str) Measurement location
+    #     - `color`: (int) Color (always blue)
+    #     - `style`: (int) Style (always dotted)
+    #     - `label`: (str) Plot label for legends
+
+    #     Returns:
+    #     --------
+    #     - `lookup_table`: A dictionary where keys are CSV file paths and values are namedtuples.
+    #     """
+
+    #     ntuple = namedtuple('Dataset', ['source', 'product', 'location', 'color', 'style', 'label'])
+
+    #     for csv_file in glob.glob(os.path.join(csv_files, "*.csv")):
+    #         source, product, location = os.path.splitext(os.path.basename(csv_file))[0].split('_')
+    #         label = f'{source}_{product} scene cloud cover for {location}'
+
+    #         color = 'skyblue'
+    #         style = ':'
+
+    #         aux_data_table[csv_file] = ntuple(source, product, location, color, style, label)
+
+    #     return aux_data_table
