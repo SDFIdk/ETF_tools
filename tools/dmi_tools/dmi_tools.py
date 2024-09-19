@@ -5,6 +5,7 @@ from shapely.geometry import Polygon
 from shapely.geometry import box
 from pyproj import Transformer
 import rasterio as rio
+import sys
 
 
 class DMITools:
@@ -41,6 +42,14 @@ class DMITools:
         Returns bbox
         """
         return json_str['geometry']['coordinates']
+    
+
+    def get_value(json_data):
+        """
+        Takes a JSON object from a DMI climate grid file
+        Returns the 'value' parameter
+        """
+        return json_data['properties']['value']
     
 
     def get_overlapping_data(dmi_file, et_file, param):
@@ -87,6 +96,30 @@ class DMITools:
 
         return overlapping_data
     
+
+    def get_all_data(dmi_file, param):
+        """
+        Takes a DMI climate grid file,  an open rasterio object and a parameter string corresponging to a DMI climate grid parameter.
+        Returns a list of the JSON strings which have overlapping bounds with the geotiff.
+        If no data overlaps, returns False.
+        """
+
+        def process_line(line, param):
+            if not param in line: return
+            return str(json.loads(line)).replace("'", '"')
+            #string formatting required to return what would otherwise be a dict object to json readable string
+
+        with open(dmi_file, 'r') as file:
+               lines = [line.rstrip() for line in file]
+
+        param_data = []
+        for line in lines:
+            result = process_line(line, param)
+
+            if not result == None: param_data.append(result)
+
+        return param_data
+    
     
     def check_bbox_intersection(raster_bounds, json_str):
         """
@@ -121,3 +154,13 @@ class DMITools:
         src_crs = src.crs
         transformer = Transformer.from_crs("EPSG:4326", src_crs, always_xy=True)
         return [list(transformer.transform(lon, lat)) for lon, lat in bbox_4326]
+    
+    def convert_jsons_to_bbox_val(dmi_jsons):
+        dmi_tuples = []
+        for dmi_json in dmi_jsons:
+            dmi_json = json.loads(dmi_json)
+            bbox = DMITools.get_bbox(dmi_json)
+            value = DMITools.get_value(dmi_json)
+            dmi_tuples.append((bbox, value))
+
+        return dmi_tuples

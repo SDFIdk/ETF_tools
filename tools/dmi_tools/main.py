@@ -18,8 +18,8 @@ import os
 import sys
 import time
 
-from tools.dmi_tools.dmi_tools import DMITools
-from tools.et_tools.raster_tools import RasterTools
+from dmi_tools import DMITools
+from et_tools.raster_tools import RasterTools
 
 class ETRasterBuilder:
     """
@@ -106,7 +106,6 @@ if __name__ == '__main__':
         # 'J:/javej/drought/drought_et/SSEB_files/voulund',
         # 'J:/javej/drought/drought_et/SSEB_files/soroe',
         # 'J:/javej/drought/drought_et/SSEB_files/skjern',
-        # 'J:/javej/drought/drought_et/SSEB_files/gludsted'
         'J:/javej/drought/drought_et/SSEB_files/gludsted'
     ]
 
@@ -120,8 +119,8 @@ if __name__ == '__main__':
 
     for et_dir in et_dirs:
         et_files = glob.glob(et_dir + '/**/*_ETF.tif')
-        output_dir = os.path.join(localized_output, os.path.basename(et_dir))
-        ETRasterBuilder(et_files, output_dir, dmi_data_dir).localize_etf_data()
+        # output_dir = os.path.join(localized_output, os.path.basename(et_dir))
+        # ETRasterBuilder(et_files, output_dir, dmi_data_dir).localize_etf_data()
 
         output_dir = os.path.join(dmi_raster_dir, os.path.basename(et_dir))
         ETRasterBuilder(et_files, output_dir, dmi_data_dir).build_dmi_data_raster()
