@@ -10,7 +10,7 @@ from rasterio.features import geometry_mask
 from rasterio.windows import from_bounds
 from pyproj import Transformer
 
-def sample_geotiffs_in_radius(folder, lat, lon, model, radius=100):
+def sample_geotiffs_in_radius(aux_files, location, auxdata_type, radius=100, data_tag = 'average_value', nodata = -9999):
     """
     Samples GeoTIFFs in a specified folder within a radius around a given lat/lon point,
     calculates the average value, and logs the result to a list.
@@ -19,39 +19,21 @@ def sample_geotiffs_in_radius(folder, lat, lon, model, radius=100):
     - folder (str): Path to the folder containing GeoTIFF files.
     - lat (float): Latitude of the point to sample.
     - lon (float): Longitude of the point to sample.
-    - model (string): Which naming scheme should be followd to extract date
+    - auxdata_type (string): Which naming scheme should be followed to extract date
     - radius (float): Radius in meters around the point to sample. Default is 25 meters.
 
     Returns:
     - list: List of dictionaries with filename, date (extracted from filename), and average value.
     """
 
-    option_dict = {
-        'sseb_unadj': ('/**/*_ETA.tif', 0.001, -9999),
-        'sseb_adj': ('*.tif', False, -9999),
-        'metric': ('*_ETA.tif', False, -9999),
-    }
-
-    try:
-        et_extension, scale_factor, nodata = option_dict[model]
-    except Exception as e:
-        e.add_note(f'{model} not available as model, script currently supperts:')
-        e.add_note('    sseb_unadj, sseb_adj, metric')
-        raise
-
     results = []
-    for filename in glob.glob(folder + et_extension):
-        if not filename.endswith(".tif"):
-            print(f'No files in {folder}')
-            continue
+    for filename in aux_files:
 
-        file_path = os.path.join(folder, filename)
-
-        with rio.open(file_path) as src:
+        with rio.open(filename) as src:
             transform = src.transform
 
             transformer = Transformer.from_crs("EPSG:4326", 'EPSG:32632', always_xy=True)
-            point_transformed = transformer.transform(lat, lon)
+            point_transformed = transformer.transform(location[0], location[1])
             point_geometry = Point(point_transformed)
 
             minx = point_transformed[0] - radius
@@ -76,23 +58,21 @@ def sample_geotiffs_in_radius(folder, lat, lon, model, radius=100):
 
         if masked_data.count() == 0:
             continue
-
-        if scale_factor: masked_data = masked_data * scale_factor
         
         average_value = masked_data.mean()
 
-        date = extract_date_from_filename(filename, model)
+        date = extract_date_from_filename(filename, auxdata_type)
 
         results.append({
             'filename': filename,
             'date': date,
-            'average_value': average_value
+            data_tag: average_value
         })
 
     return results
 
 
-def extract_date_from_filename(filename, model):
+def extract_date_from_filename(filename, auxdata_type):
     """
     Extracts date string from filenames
 
@@ -104,7 +84,7 @@ def extract_date_from_filename(filename, model):
     - date string: YYYYMMDD date string
     """
 
-    def extract_sseb(filename):
+    def extract_dmi(filename):
         match = re.search(r'\d{8}', os.path.basename(filename))
         if match:
             return match.group(0)
@@ -119,15 +99,15 @@ def extract_date_from_filename(filename, model):
             raise ValueError("Input does not match METRIC naming convention")
 
     extraction_functions = {
-        "sseb_unadj": extract_sseb,
-        "sseb_adj": extract_sseb,
-        "metric": extract_metric,
+        "dmi-pet": extract_dmi,
+        "metric_albedo": extract_metric,
+        # "metric": extract_metric,
     }
     
-    if model in extraction_functions:
-        return extraction_functions[model](filename)
+    if auxdata_type in extraction_functions:
+        return extraction_functions[auxdata_type](filename)
     else:
-        raise ValueError(f"Extraction option for {model} does not exist.")
+        raise ValueError(f"Extraction option for {auxdata_type} does not exist.")
 
 
 def save_results_to_csv(results, output_csv):
@@ -147,17 +127,22 @@ def save_results_to_csv(results, output_csv):
             writer.writerow(result)
 
 
-def build_csv_name(model, location_name):
-
-    csv_label = {
-        'sseb_unadj': 'SSEB_USGS',
-        'sseb_adj': 'SSEB_DMI',
-        'metric': 'METRIC',
-    }[model]
-
-    return os.path.join(output_dir, f'{csv_label}_{location_name}.csv')
-
 if __name__ == "__main__":
+
+    """
+    This script takes a folder of rasters and produces a standardizet AUX csv 
+    for plotting
+
+    Important! auxdata_type, product and location may not contain underscores!
+
+    Takes
+    aux_files: list of files to process
+    output_dir: path to output CSVs
+    auxdata_type: string with name of the data type
+    product: string with name of data product from distributor
+    et_sample_points: location coordinates and location name string   
+    data_tag: label for data column in CSV, defaults to 'average_value'
+    """
 
     # et_file_dir = "J:/javej/drought/drought_et/METRIC/"
     # model = 'metric'
@@ -165,32 +150,37 @@ if __name__ == "__main__":
     # et_file_dir = "J:/javej/drought/drought_et/adjusted_SSEB/"
     # model = 'sseb_adj'
 
-    et_file_dir = "J:/javej/drought/drought_et/SSEB_files/"
-    model = 'sseb_unadj'
+    aux_dir = "J:/javej/drought/drought_et/dmi_PET_raster/"
+    
+    auxdata_type = 'dmi-pet'
+    product = 'pot-evaporation-makkink'
+    data_tag = 'PET_ET'
 
     # output_dir = "J:/javej/drought/drought_et/time_series/"
     output_dir = 'test_dir/et_data/'
 
     #lon, lat and directory in the et_file dir
     et_sample_points = [
-        (55.484757, 11.642088, 'soroe'),
-        (56.038813, 9.160688, 'voulund'),
-        (55.913856, 8.401428, 'skjern'),
-        (56.075209, 9.333798, 'gludsted')
+        ([55.484757, 11.642088], 'soroe'),
+        ([56.038813, 9.160688], 'voulund'),
+        ([55.913856, 8.401428], 'skjern'),
+        ([56.075209, 9.333798], 'gludsted')
     ]
 
     os.makedirs(output_dir, exist_ok=True)
 
     for data in et_sample_points:
-        lon, lat, location_name = data
+        location, location_name = data
 
-        csv_name = build_csv_name(model, location_name)
+        csv_name = f'{auxdata_type}_{product}_{location}.csv'
+
+        aux_files = glob.glob(os.path.join(aux_files, location_name + '/') + '*.tif')
 
         results = sample_geotiffs_in_radius(
-            os.path.join(et_file_dir, location_name + '/'), 
-            lat, 
-            lon, 
-            model, 
+            aux_files, 
+            location, 
+            auxdata_type, 
+            data_tag = data_tag
         )
 
         save_results_to_csv(results, csv_name)

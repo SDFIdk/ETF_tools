@@ -9,8 +9,7 @@ import os
 import glob
 import sys
 
-from dmi_tools import DMITools
-
+from tools.dmi_tools.dmi_tools import DMITools
 
 import rasterio
 from rasterio import features
@@ -85,8 +84,6 @@ def bboxes_to_raster(bbox_value_list, pixel_size=0.0001, nodata_value=0, output_
     else:
         return raster_data, transform
 
-
-
 if __name__ == '__main__':
 
     dmi_data_dir = "J:/javej/drought/drought_et/dmi_climate_grid/sorted_et_files/"
@@ -97,6 +94,8 @@ if __name__ == '__main__':
     localized_output = "test_files/localized/"
     crs = 'EPSG_4329'
 
+
+    #THIS HERE IS EVIDENCE FOR THE CORE OF ALL MY PROBLEMS!!!!!
     print(os.environ.get('PROJ_DATA'))
     # print(os.environ.get())
     sys.exit()
@@ -110,6 +109,8 @@ if __name__ == '__main__':
         bboxes_to_raster(dmi_data, output_file = dmi_raster_output)
 
         # bboxes_to_raster(bbox_value_list, pixel_size=0.0001, nodata_value=0, output_file=None)
+
+        #TODO the .proj thing is giving me a headache. Fix the path
 
         sys.exit()
 

@@ -43,7 +43,7 @@ def standardize_icos_data(input_csv, output_csv, date_range=None):
 
 if __name__ == "__main__":
     
-    icos_dir = 'J:/javej/drought/drought_et/icos_data/'
+    icos_dir = 'J:/javej/drought/drought_et/icos-etc-l2_data/'
     output_dir = 'test_dir/aux_data/'
 
     auxdata_type = 'groundtruth'
