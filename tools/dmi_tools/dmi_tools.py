@@ -3,8 +3,14 @@ import os
 import json
 from shapely.geometry import Polygon
 from shapely.geometry import box
+from shapely.geometry import shape
+from shapely.ops import unary_union
+from shapely.ops import transform as shapely_transform
 from pyproj import Transformer
+import numpy as np
 import rasterio as rio
+from rasterio import features
+from rasterio.transform import from_bounds
 import sys
 
 
@@ -97,6 +103,35 @@ class DMITools:
         return overlapping_data
     
 
+    def get_parameter_specific_data(dmi_file, param):
+        """
+        Takes a DMI climate grid file,  an open rasterio object and a parameter string corresponging to a DMI climate grid parameter.
+        Returns a list of the JSON strings which have overlapping bounds with the geotiff.
+        If no data overlaps, returns False.
+        """
+
+        def check_param(line, param):
+            if not param in line: 
+                return False
+            
+            return True
+
+        with open(dmi_file, 'r') as file:
+               lines = [line.rstrip() for line in file]
+
+        param_data = []
+        for line in lines:
+
+            if not check_param(line, param): continue
+
+            line = json.loads(line)
+            line = str(line).replace("'", '"')
+
+            param_data.append(line)
+
+        return param_data
+    
+
     def get_all_data(dmi_file, param):
         """
         Takes a DMI climate grid file,  an open rasterio object and a parameter string corresponging to a DMI climate grid parameter.
@@ -164,3 +199,76 @@ class DMITools:
             dmi_tuples.append((bbox, value))
 
         return dmi_tuples
+
+
+    def json_lines_to_raster(param_filtered_data, output_path):
+        """
+        Converts a list of GeoJSON-like features into a raster.
+
+        Parameters:
+        - param_filtered_data: list of GeoJSON-like features (dictionaries)
+        - output_path: path to the output raster file
+        """
+        # Prepare lists for geometries and values
+        geometries = []
+        values = []
+
+        for feature in param_filtered_data:
+            geom = feature['geometry']
+            value = feature['properties']['value']
+            shapely_geom = shape(geom)
+            geometries.append(shapely_geom)
+            values.append(value)
+
+        # Transform geometries to projected CRS (EPSG:25832)
+        transformer = Transformer.from_crs("EPSG:4326", "EPSG:25832", always_xy=True)
+
+        def project_geom(geom):
+            return shapely_transform(transformer.transform, geom)
+
+        projected_geometries = [project_geom(geom) for geom in geometries]
+
+        # Compute the total bounds
+        all_geometries = unary_union(projected_geometries)
+        minx, miny, maxx, maxy = all_geometries.bounds
+
+        # Define resolution
+        pixel_size = 100  # 100 meters
+
+        # Compute raster dimensions
+        width = int(np.ceil((maxx - minx) / pixel_size))
+        height = int(np.ceil((maxy - miny) / pixel_size))
+
+        # Adjust maxx and maxy to match the computed width and height
+        maxx = minx + width * pixel_size
+        maxy = miny + height * pixel_size
+
+        transform = from_bounds(minx, miny, maxx, maxy, width, height)
+
+        # Prepare shapes for rasterization
+        shapes = ((geom, value) for geom, value in zip(projected_geometries, values))
+
+        # Rasterize
+        raster_data = features.rasterize(
+            shapes=shapes,
+            out_shape=(height, width),
+            fill=0,  # Assuming nodata value is 0
+            transform=transform,
+            dtype=np.float32,
+            all_touched=False
+        )
+
+        # Write the raster
+        with rio.open(
+            output_path,
+            'w',
+            driver='GTiff',
+            height=height,
+            width=width,
+            count=1,
+            dtype=raster_data.dtype,
+            crs='EPSG:25832',
+            transform=transform,
+            nodata=0
+        ) as dst:
+            dst.write(raster_data, 1)

@@ -160,7 +160,7 @@ def build_csv_name(model, location_name):
 if __name__ == "__main__":
 
     """
-    This script takes a folder of rasters and produces a standardizet ET csv 
+    This script takes a folder of rasters and produces a standardized ET csv 
     for plotting
 
     Takes

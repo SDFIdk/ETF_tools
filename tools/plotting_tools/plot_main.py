@@ -5,9 +5,9 @@ from plot_functions.plot_frameworks import PlotFunctions
 
 def run_all_plots():
     plot_functions.plot_all_data()
-    plot_functions.plot_data_by_location(cloud_resample='M', gtruth_resample = 'W')
-    plot_functions.plot_data_by_location_with_ratio()
-    plot_functions.plot_data_by_adjustment(cloud_resample='M', gtruth_resample = 'W')
+    plot_functions.plot_by_location(cloud_resample='M', gtruth_resample = 'W')
+    plot_functions.plot_by_location_with_ratio()
+    plot_functions.plot_by_adjustment(cloud_resample='M', gtruth_resample = 'W')
 
 
 if __name__ == '__main__':

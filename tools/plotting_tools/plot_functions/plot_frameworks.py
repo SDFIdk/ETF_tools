@@ -62,7 +62,7 @@ class PlotFunctions:
         plt.savefig(output_filename, dpi=300, bbox_inches='tight')
 
 
-    def plot_data_by_location(
+    def plot_by_location(
             self, 
             plot_cloud_cover=True, 
             plot_ground_truth=True, 
@@ -122,7 +122,7 @@ class PlotFunctions:
             plt.close(fig)
 
 
-    def plot_data_by_location_with_ratio(
+    def plot_by_location_with_ratio(
         self,
         plot_cloud_cover=True, 
         plot_ground_truth=True, 
@@ -199,7 +199,7 @@ class PlotFunctions:
             plt.close()
 
 
-    def plot_data_by_adjustment(
+    def plot_by_adjustment(
         self, 
         plot_cloud_cover=True, 
         plot_ground_truth=True, 

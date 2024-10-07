@@ -114,7 +114,7 @@ if __name__ == '__main__':
     # dmi_raster_dir = "J:/javej//drought/drought_et/dmi_PET_raster/"
 
     localized_output = "test_files/localized/"
-    dmi_raster_dir = "terst_files/PET/"
+    dmi_raster_dir = "test_files/PET/"
     crs = 'EPSG_4329'
 
     for et_dir in et_dirs:
