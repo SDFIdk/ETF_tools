@@ -10,6 +10,16 @@ from rasterio.features import geometry_mask
 from rasterio.windows import from_bounds
 from pyproj import Transformer
 
+import os
+import glob
+import sys
+import numpy as np
+import rasterio as rio
+from rasterio.mask import geometry_mask
+from rasterio.windows import from_bounds
+from pyproj import Transformer
+from shapely.geometry import Point
+
 def sample_geotiffs_in_radius(folder, location, model, radius=100):
     """
     Samples GeoTIFFs in a specified folder within a radius around a given lat/lon point,
@@ -17,10 +27,9 @@ def sample_geotiffs_in_radius(folder, location, model, radius=100):
 
     Parameters:
     - folder (str): Path to the folder containing GeoTIFF files.
-    - lat (float): Latitude of the point to sample.
-    - lon (float): Longitude of the point to sample.
-    - model (string): Which naming scheme should be followd to extract date
-    - radius (float): Radius in meters around the point to sample. Default is 25 meters.
+    - location (tuple): (longitude, latitude) of the point to sample.
+    - model (string): Which naming scheme should be followed to extract date.
+    - radius (float): Radius in meters around the point to sample. Default is 100 meters.
 
     Returns:
     - list: List of dictionaries with filename, date (extracted from filename), and average value.
@@ -36,15 +45,14 @@ def sample_geotiffs_in_radius(folder, location, model, radius=100):
 
     try:
         et_extension, scale_factor, nodata = option_dict[model]
-    except Exception as e:
-        e.add_note(f'{model} not available as model, script currently supperts:')
-        e.add_note('    sseb_unadj, sseb_adj, metric')
+    except KeyError as e:
+        e.args += (f"'{model}' not available as model. Script currently supports: sseb_unadj, sseb_adj, metric, SenET2018, SenET2023.",)
         raise
 
     results = []
-    et_files = glob.glob(folder + et_extension)
-    if et_files == None:
-        print(f'No files in {folder}')
+    et_files = glob.glob(os.path.join(folder, et_extension))
+    if not et_files:
+        print(f'No files matching {et_extension} in {folder}')
         return
 
     for filename in et_files:
@@ -54,8 +62,15 @@ def sample_geotiffs_in_radius(folder, location, model, radius=100):
         with rio.open(file_path) as src:
             transform = src.transform
 
-            transformer = Transformer.from_crs(src.crs, 'EPSG:32632', always_xy=True)
+            # Correctly transform from EPSG:4326 to the raster's CRS
+            transformer = Transformer.from_crs('EPSG:4326', src.crs, always_xy=True)
             point_transformed = transformer.transform(location[0], location[1])
+
+            # Check if the point is within the raster bounds
+            if not (src.bounds.left <= point_transformed[0] <= src.bounds.right and
+                    src.bounds.bottom <= point_transformed[1] <= src.bounds.top):
+                print(f'LOCATION DOES NOT OVERLAP {file_path}')
+                continue
 
             minx = point_transformed[0] - radius
             miny = point_transformed[1] - radius
@@ -64,15 +79,19 @@ def sample_geotiffs_in_radius(folder, location, model, radius=100):
 
             window = from_bounds(minx, miny, maxx, maxy, transform=transform)
             data = src.read(1, window=window)
-        
-        #TODO THIS PART FAILS, SUSPECT SOMETHING ABOUT OVERLAP WITH FILE AND SHP.
+
         try:
-            mask = geometry_mask([Point(point_transformed)], transform=transform, invert=True, out_shape=(data.shape[0], data.shape[1]))
+            # Adjust the mask creation to match the window's dimensions
+            window_transform = src.window_transform(window)
+            mask = geometry_mask(
+                [Point(point_transformed)],
+                transform=window_transform,
+                invert=True,
+                out_shape=(data.shape[0], data.shape[1])
+            )
             masked_data = np.ma.masked_array(data, mask=mask)
-        except:
-            print(f'{filename}')
-            print('AAAAA')
-            sys.exit()
+        except Exception as e:
+            print(f'Error processing file {filename}: {e}')
             continue
 
         if np.all(masked_data == nodata):
@@ -83,8 +102,9 @@ def sample_geotiffs_in_radius(folder, location, model, radius=100):
         if masked_data.count() == 0:
             continue
 
-        if scale_factor: masked_data = masked_data * scale_factor
-        
+        if scale_factor:
+            masked_data = masked_data * scale_factor
+
         average_value = masked_data.mean()
 
         date = extract_date_from_filename(filename, model)
@@ -96,6 +116,7 @@ def sample_geotiffs_in_radius(folder, location, model, radius=100):
         })
 
     return results
+
 
 
 def extract_date_from_filename(filename, model):
