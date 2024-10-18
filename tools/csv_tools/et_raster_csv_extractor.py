@@ -30,6 +30,8 @@ def sample_geotiffs_in_radius(folder, location, model, radius=100):
         'sseb_unadj': ('/**/*_ETA.tif', 0.001, -9999),
         'sseb_adj': ('*.tif', False, -9999),
         'metric': ('*_ETA.tif', False, -9999),
+        'SenET2018': ('*ET-day-gf.tif', False, 0),
+        'SenET2023': ('*ET-day-gf.tif', False, 0),
     }
 
     try:
@@ -40,19 +42,20 @@ def sample_geotiffs_in_radius(folder, location, model, radius=100):
         raise
 
     results = []
-    for filename in glob.glob(folder + et_extension):
-        if not filename.endswith(".tif"):
-            print(f'No files in {folder}')
-            continue
+    et_files = glob.glob(folder + et_extension)
+    if et_files == None:
+        print(f'No files in {folder}')
+        return
+
+    for filename in et_files:
 
         file_path = os.path.join(folder, filename)
 
         with rio.open(file_path) as src:
             transform = src.transform
 
-            transformer = Transformer.from_crs("EPSG:4326", 'EPSG:32632', always_xy=True)
+            transformer = Transformer.from_crs(src.crs, 'EPSG:32632', always_xy=True)
             point_transformed = transformer.transform(location[0], location[1])
-            point_geometry = Point(point_transformed)
 
             minx = point_transformed[0] - radius
             miny = point_transformed[1] - radius
@@ -61,12 +64,15 @@ def sample_geotiffs_in_radius(folder, location, model, radius=100):
 
             window = from_bounds(minx, miny, maxx, maxy, transform=transform)
             data = src.read(1, window=window)
-            
+        
+        #TODO THIS PART FAILS, SUSPECT SOMETHING ABOUT OVERLAP WITH FILE AND SHP.
         try:
-            mask = geometry_mask([point_geometry], transform=transform, invert=True, out_shape=(data.shape[0], data.shape[1]))
+            mask = geometry_mask([Point(point_transformed)], transform=transform, invert=True, out_shape=(data.shape[0], data.shape[1]))
             masked_data = np.ma.masked_array(data, mask=mask)
         except:
             print(f'{filename}')
+            print('AAAAA')
+            sys.exit()
             continue
 
         if np.all(masked_data == nodata):
@@ -117,11 +123,20 @@ def extract_date_from_filename(filename, model):
             return match.group(1)
         else:
             raise ValueError("Input does not match METRIC naming convention")
+        
+    def extract_senet(filename):
+        match = re.search(r'\((\d{8})\)', os.path.basename(filename))
+        if match:
+            return match.group(1)
+        else:
+            raise ValueError("Input does not match SenET naming convention")
 
     extraction_functions = {
         "sseb_unadj": extract_sseb,
         "sseb_adj": extract_sseb,
         "metric": extract_metric,
+        "SenET2018": extract_senet,
+        "SenET2023": extract_senet,
     }
     
     if model in extraction_functions:
@@ -153,9 +168,12 @@ def build_csv_name(model, location_name):
         'sseb_unadj': 'SSEB_USGS',
         'sseb_adj': 'SSEB_DMI',
         'metric': 'METRIC',
+        'SenET2018': 'SenET-2018',
+        'SenET2023': 'SenET-2023',
     }[model]
 
     return os.path.join(output_dir, f'{csv_label}_{location_name}.csv')
+
 
 if __name__ == "__main__":
 
@@ -171,16 +189,22 @@ if __name__ == "__main__":
     """
 
     # et_file_dir = "J:/javej/drought/drought_et/METRIC/"
-    # model = 'metric'
+    # model = 'metric_unadj'
 
     # et_file_dir = "J:/javej/drought/drought_et/adjusted_SSEB/"
     # model = 'sseb_adj'
 
-    et_file_dir = "J:/javej/drought/drought_et/SSEB_files/"
-    model = 'sseb_unadj'
+    # et_file_dir = "J:/javej/drought/drought_et/SSEB_files/"
+    # model = 'sseb_unadj'
+
+    et_file_dir = 'J:/javej/drought/drought_et/dhi_data/data_2018/'
+    model = 'SenET2018'
+
+    # et_file_dir = 'J:/javej/drought/drought_et/dhi_data/data_2023/'
+    # model = 'SenET2023'
 
     # output_dir = "J:/javej/drought/drought_et/time_series/"
-    output_dir = 'test_dir/et_data/'
+    output_dir = 'DHI_CSV/'
 
     #lon, lat and directory in the et_file dir
     et_sample_points = [
@@ -190,15 +214,23 @@ if __name__ == "__main__":
         ([56.075209, 9.333798], 'gludsted')
     ]
 
-    os.makedirs(output_dir, exist_ok=True)
+    #if the et_file_dir contains seperate folders named like the et_sample_points, set to True
+    location_specific_folder = False
 
+    # --------
+
+    os.makedirs(output_dir, exist_ok=True)
     for data in et_sample_points:
         location, location_name = data
+
+        folder = et_file_dir
+        if location_specific_folder:
+            folder = os.path.join(et_file_dir, location_name + '/'), 
 
         csv_name = build_csv_name(model, location_name)
 
         results = sample_geotiffs_in_radius(
-            os.path.join(et_file_dir, location_name + '/'), 
+            folder,
             location, 
             model, 
         )
