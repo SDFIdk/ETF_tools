@@ -71,13 +71,13 @@ class ETRasterBuilder:
 if __name__ == '__main__':
 
     """
-    Function takes dmi CSVs and rasterizes them.
+    Function takes DMI CSVs and rasterizes them.
     """
     
     dmi_data_dir = "J:/javej/drought/drought_et/dmi_climate_grid/sorted_et_files/"
 
     dmi_raster_output = "test_files/PET/"
-    crs = 'EPSG_4329'
+    crs = 'EPSG_4326'
 
 
     ETRasterBuilder(dmi_raster_output, dmi_data_dir).build_dmi_data_raster()

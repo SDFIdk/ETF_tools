@@ -78,8 +78,6 @@ class climate_data_searcher:
         return value
     
 
-    
-
 if __name__ == "__main__":
     climate_data_dir = "J:/javej/dmi_climate_grid/"
     output_file_dir = "/"

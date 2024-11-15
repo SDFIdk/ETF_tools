@@ -49,13 +49,18 @@ def sample_geotiffs_in_radius(folder, location, model, radius=100):
         e.args += (f"'{model}' not available as model. Script currently supports: sseb_unadj, sseb_adj, metric, SenET2018, SenET2023.",)
         raise
 
-    results = []
-    et_files = glob.glob(os.path.join(folder, et_extension))
-    if not et_files:
+    et_files = glob.glob(os.path.join(folder, et_extension), recursive=True)
+    if et_files == []:
         print(f'No files matching {et_extension} in {folder}')
+        sys.exit()
         return
 
-    for filename in et_files:
+    results = []
+    for i, filename in enumerate(et_files):
+        print(f'Extrating ET values: {i} / {len(et_files) + 1}')
+
+        if not '_2023' in filename:
+            continue
 
         file_path = os.path.join(folder, filename)
 
@@ -218,11 +223,11 @@ if __name__ == "__main__":
     # et_file_dir = "J:/javej/drought/drought_et/SSEB_files/"
     # model = 'sseb_unadj'
 
-    et_file_dir = 'J:/javej/drought/drought_et/dhi_data/data_2018/'
-    model = 'SenET2018'
+    # et_file_dir = 'J:/javej/drought/drought_et/dhi_data/data_2018/'
+    # model = 'SenET2018'
 
-    # et_file_dir = 'J:/javej/drought/drought_et/dhi_data/data_2023/'
-    # model = 'SenET2023'
+    et_file_dir = 'J:/javej/drought/drought_et/dhi_data/data_2023/ET/output/20m/denmark/'
+    model = 'SenET2023'
 
     # output_dir = "J:/javej/drought/drought_et/time_series/"
     output_dir = 'DHI_CSV/'
