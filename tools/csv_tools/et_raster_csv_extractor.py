@@ -9,6 +9,7 @@ from shapely.geometry import Point
 from rasterio.features import geometry_mask
 from rasterio.windows import from_bounds
 from pyproj import Transformer
+import pandas as pd
 
 import os
 import glob
@@ -122,6 +123,16 @@ def sample_geotiffs_in_radius(folder, location, model, radius=100):
 
     return results
 
+
+def clean_data(file_path):
+    # Load the CSV file
+    df = pd.read_csv(file_path)
+
+    # Sort by date and keep the first occurrence for duplicates
+    df = df.sort_values(by=['date', 'ID']).drop_duplicates(subset='date', keep='first')
+
+    # Save the cleaned data back to the same file
+    df.to_csv(file_path, index=False)
 
 
 def extract_date_from_filename(filename, model):
@@ -262,3 +273,5 @@ if __name__ == "__main__":
         )
 
         save_results_to_csv(results, csv_name)
+
+        clean_data(csv_name)
