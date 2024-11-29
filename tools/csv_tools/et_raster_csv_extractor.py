@@ -241,7 +241,7 @@ if __name__ == "__main__":
     model = 'SenET2023'
 
     # output_dir = "J:/javej/drought/drought_et/time_series/"
-    output_dir = 'DHI_CSV/'
+    output_dir = 'DHI_CSV_localized/'
 
     #lon, lat and directory in the et_file dir
     et_sample_points = [
